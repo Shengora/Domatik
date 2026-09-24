@@ -20,6 +20,7 @@ android/key.properties
 android/voice_assistant_android.iml
 android/.idea/
 android/.cxx/
+android/voiceassistant_android.iml
 ios/.symlinks/
 ios/Pods/
 ios/Runner.xcworkspace/xcuserdata/
