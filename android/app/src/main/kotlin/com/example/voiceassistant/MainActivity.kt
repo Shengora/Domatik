@@ -1,0 +1,178 @@
+package com.example.voiceassistant
+
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.ContactsContract
+import android.provider.Settings
+import android.text.TextUtils
+import androidx.annotation.NonNull
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+
+class MainActivity : FlutterActivity() {
+    private val CHANNEL = "com.example.voiceassistant/channel"
+
+    override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "openAccessibilitySettings" -> {
+                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    startActivity(intent)
+                    result.success(true)
+                }
+                "isAccessibilityEnabled" -> {
+                    result.success(isAccessibilityServiceEnabled())
+                }
+                "executeCommand" -> {
+                    val command = call.arguments as Map<String, Any>
+                    handleCommand(command, result)
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
+    }
+
+    private fun handleCommand(command: Map<String, Any>, result: MethodChannel.Result) {
+        val action = command["action"] as? String
+        val params = command["params"] as? Map<String, Any> ?: emptyMap()
+
+        when (action) {
+            "open_app" -> {
+                val appName = params["appName"] as? String
+                if (appName != null) {
+                    val opened = openAppByName(appName)
+                    if (opened) {
+                        result.success(true)
+                    } else {
+                        result.error("APP_NOT_FOUND", "Could not find app with name: $appName", null)
+                    }
+                } else {
+                    result.error("INVALID_ARGS", "App name is required", null)
+                }
+            }
+            "call" -> {
+                val name = params["name"] as? String
+                if (name != null) {
+                    val phone = getPhoneNumberByName(name)
+                    if (phone != null) {
+                        makeCall(phone)
+                        result.success(true)
+                    } else {
+                        result.error("CONTACT_NOT_FOUND", "Could not find contact: $name", null)
+                    }
+                } else {
+                    result.error("INVALID_ARGS", "Contact name is required", null)
+                }
+            }
+            "swipe" -> {
+                val direction = params["direction"] as? String ?: "up"
+                val count = params["count"] as? Int ?: 1
+
+                if (VoiceAccessibilityService.instance != null) {
+                    VoiceAccessibilityService.instance?.performSwipe(direction, count)
+                    result.success(true)
+                } else {
+                    result.error("SERVICE_NOT_RUNNING", "Accessibility Service is not running", null)
+                }
+            }
+            "stop_swipe" -> {
+                if (VoiceAccessibilityService.instance != null) {
+                    VoiceAccessibilityService.instance?.stopSwiping()
+                    result.success(true)
+                } else {
+                    result.error("SERVICE_NOT_RUNNING", "Accessibility Service is not running", null)
+                }
+            }
+            else -> {
+                result.error("UNKNOWN_ACTION", "Action not supported", null)
+            }
+        }
+    }
+
+    private fun openAppByName(appName: String): Boolean {
+        val pm = packageManager
+        val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+
+        for (app in packages) {
+            val label = pm.getApplicationLabel(app).toString()
+            if (label.equals(appName, ignoreCase = true)) {
+                val intent = pm.getLaunchIntentForPackage(app.packageName)
+                if (intent != null) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(intent)
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    private fun getPhoneNumberByName(name: String): String? {
+        var phoneNumber: String? = null
+        val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
+        val projection = arrayOf(
+            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+            ContactsContract.CommonDataKinds.Phone.NUMBER
+        )
+
+        val selection = "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ?"
+        val selectionArgs = arrayOf("%$name%")
+
+        val cursor = contentResolver.query(uri, projection, selection, selectionArgs, null)
+
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                val numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                if (numberIndex != -1) {
+                    phoneNumber = cursor.getString(numberIndex)
+                }
+            }
+            cursor.close()
+        }
+        return phoneNumber
+    }
+
+    private fun makeCall(phoneNumber: String) {
+        val intent = Intent(Intent.ACTION_CALL)
+        intent.data = Uri.parse("tel:$phoneNumber")
+        startActivity(intent)
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        var accessibilityEnabled = 0
+        val service = packageName + "/" + VoiceAccessibilityService::class.java.canonicalName
+        try {
+            accessibilityEnabled = Settings.Secure.getInt(
+                applicationContext.contentResolver,
+                android.provider.Settings.Secure.ACCESSIBILITY_ENABLED
+            )
+        } catch (e: Settings.SettingNotFoundException) {
+            // Ignored
+        }
+
+        val mStringColonSplitter = TextUtils.SimpleStringSplitter(':')
+
+        if (accessibilityEnabled == 1) {
+            val settingValue = Settings.Secure.getString(
+                applicationContext.contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            )
+            if (settingValue != null) {
+                mStringColonSplitter.setString(settingValue)
+                while (mStringColonSplitter.hasNext()) {
+                    val accessibilityService = mStringColonSplitter.next()
+                    if (accessibilityService.equals(service, ignoreCase = true)) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+}

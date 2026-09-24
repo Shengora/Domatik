@@ -1,0 +1,19 @@
+{
+  "@@locale": "en",
+  "appTitle": "Voice Assistant",
+  "microphoneButtonLabel": "Speak",
+  "permissionsRequired": "You need to grant all permissions for the app to work.",
+  "microphonePermission": "Microphone",
+  "contactsPermission": "Contacts",
+  "phonePermission": "Phone Call",
+  "accessibilityPermission": "Accessibility",
+  "openSettings": "Open Settings",
+  "grantPermission": "Grant",
+  "continueButton": "Continue",
+  "callConfirmation": "Call {name}?",
+  "yes": "Yes",
+  "no": "No",
+  "notUnderstood": "I didn't understand",
+  "listening": "Listening...",
+  "statusReady": "Ready"
+}

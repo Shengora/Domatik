@@ -1,0 +1,19 @@
+{
+  "@@locale": "ru",
+  "appTitle": "Голосовой Помощник",
+  "microphoneButtonLabel": "Говорите",
+  "permissionsRequired": "Для работы приложения необходимо предоставить все разрешения.",
+  "microphonePermission": "Микрофон",
+  "contactsPermission": "Контакты",
+  "phonePermission": "Телефон",
+  "accessibilityPermission": "Спец. возможности (Accessibility)",
+  "openSettings": "Открыть настройки",
+  "grantPermission": "Разрешить",
+  "continueButton": "Продолжить",
+  "callConfirmation": "Позвонить {name}?",
+  "yes": "Да",
+  "no": "Нет",
+  "notUnderstood": "Я не понял",
+  "listening": "Слушаю...",
+  "statusReady": "Готов"
+}

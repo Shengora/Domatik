@@ -1,0 +1,26 @@
+{
+  "@@locale": "uz",
+  "appTitle": "Ovozli Yordamchi",
+  "microphoneButtonLabel": "Gapiring",
+  "permissionsRequired": "Ilova ishlashi uchun barcha ruxsatlarni berishingiz kerak.",
+  "microphonePermission": "Mikrofon",
+  "contactsPermission": "Kontaktlar",
+  "phonePermission": "Qo'ng'iroq",
+  "accessibilityPermission": "Maxsus Imkoniyatlar (Accessibility)",
+  "openSettings": "Sozlamalarni ochish",
+  "grantPermission": "Ruxsat berish",
+  "continueButton": "Davom etish",
+  "callConfirmation": "{name}ga qo'ng'iroq qilaymi?",
+  "@callConfirmation": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "yes": "Ha",
+  "no": "Yo'q",
+  "notUnderstood": "Tushunmadim",
+  "listening": "Eshitmoqhaman...",
+  "statusReady": "Tayyor"
+}
