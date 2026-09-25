@@ -21,6 +21,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _phoneGranted = false;
   bool _accessibilityGranted = false;
   bool _overlayGranted = false;
+  bool _smsGranted = false;
+  bool _writeSettingsGranted = false;
 
   @override
   void initState() {
@@ -64,15 +66,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       debugPrint("Failed to check overlay permission: '${e.message}'.");
     }
 
+    final smsStatus = await Permission.sms.status;
+
+    bool writeSettingsStatus = false;
+    try {
+      final bool? result = await platform.invokeMethod<bool>('canWriteSettings');
+      writeSettingsStatus = result ?? false;
+    } on PlatformException catch (e) {
+      debugPrint("Failed to check write settings permission: '${e.message}'.");
+    }
+
     setState(() {
       _micGranted = micStatus.isGranted;
       _contactsGranted = contactsStatus.isGranted;
       _phoneGranted = phoneStatus.isGranted;
       _accessibilityGranted = accessibilityStatus;
       _overlayGranted = overlayStatus;
+      _smsGranted = smsStatus.isGranted;
+      _writeSettingsGranted = writeSettingsStatus;
     });
 
-    debugPrint("OnboardingScreen Permissions -> Mic: $_micGranted, Contacts: $_contactsGranted, Phone: $_phoneGranted, Accessibility: $_accessibilityGranted, Overlay: $_overlayGranted");
+    debugPrint("OnboardingScreen Permissions -> Mic: $_micGranted, Contacts: $_contactsGranted, Phone: $_phoneGranted, Accessibility: $_accessibilityGranted, Overlay: $_overlayGranted, SMS: $_smsGranted, WriteSettings: $_writeSettingsGranted");
   }
 
   Future<void> _requestMicrophone() async {
@@ -93,6 +107,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final status = await Permission.phone.request();
     setState(() {
       _phoneGranted = status.isGranted;
+    });
+  }
+
+  Future<void> _requestSms() async {
+    final status = await Permission.sms.request();
+    setState(() {
+      _smsGranted = status.isGranted;
     });
   }
 
@@ -120,13 +141,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+  Future<void> _requestWriteSettingsPermission() async {
+    try {
+      await platform.invokeMethod('requestWriteSettingsPermission');
+    } on PlatformException catch (e) {
+      debugPrint("Failed to request write settings permission: '${e.message}'.");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    // Consider accessibility and overlay as granted if explicitly enabled or allowed to bypass
-    final coreGranted = _micGranted && _contactsGranted && _phoneGranted;
-    final allGranted = coreGranted && _accessibilityGranted && _overlayGranted;
+    // Consider accessibility, overlay, and write settings as granted if explicitly enabled or allowed to bypass
+    final coreGranted = _micGranted && _contactsGranted && _phoneGranted && _smsGranted;
+    final allGranted = coreGranted && _accessibilityGranted && _overlayGranted && _writeSettingsGranted;
 
     return Scaffold(
       appBar: AppBar(
@@ -161,6 +190,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               buttonText: l10n.grantPermission,
             ),
             _buildPermissionItem(
+              title: l10n.smsPermission,
+              isGranted: _smsGranted,
+              onRequest: _requestSms,
+              buttonText: l10n.grantPermission,
+            ),
+            _buildPermissionItem(
               title: l10n.accessibilityPermission,
               isGranted: _accessibilityGranted,
               onRequest: _openAccessibilitySettings,
@@ -170,6 +205,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               title: l10n.overlayPermission,
               isGranted: _overlayGranted,
               onRequest: _requestOverlayPermission,
+              buttonText: l10n.openSettings,
+            ),
+            _buildPermissionItem(
+              title: l10n.writeSettingsPermission,
+              isGranted: _writeSettingsGranted,
+              onRequest: _requestWriteSettingsPermission,
               buttonText: l10n.openSettings,
             ),
             const Spacer(),

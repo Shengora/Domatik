@@ -6,14 +6,37 @@
   "microphonePermission": "Microphone",
   "contactsPermission": "Contacts",
   "phonePermission": "Phone Call",
+  "smsPermission": "Send SMS",
   "accessibilityPermission": "Accessibility",
   "openSettings": "Open Settings",
   "grantPermission": "Grant",
   "overlayPermission": "Display over other apps",
+  "writeSettingsPermission": "Modify system settings (Brightness)",
   "continueButton": "Continue",
-  "callConfirmation": "Call {name}?",
+  "callConfirmationVoice": "Should I call {name}? (Yes/No)",
+  "@callConfirmationVoice": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "smsConfirmationVoice": "Should I send '{message}' to {name}? (Yes/No)",
+  "@smsConfirmationVoice": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
   "yes": "Yes",
   "no": "No",
+  "actionConfirmed": "Confirmed.",
+  "actionCancelled": "Cancelled.",
+  "unknownTime": "I couldn't understand the time. Try 'wake me at 7:30'.",
   "notUnderstood": "I didn't understand",
   "listening": "Listening...",
   "statusReady": "Ready",

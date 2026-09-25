@@ -14,6 +14,10 @@ void overlayMain() {
       final String localeCode = call.arguments['localeCode'];
 
       try {
+        // Since overlay doesn't have UI to do multi-turn easily via Dart,
+        // we can either return the 'call'/'sms' intent and let native handle it
+        // or just execute it directly. For now, since user says "Dilshodga SMS yubor",
+        // the native overlay can just execute it to save complex state.
         final result = CommandParser.parse(text, localeCode);
         return result;
       } catch (e) {

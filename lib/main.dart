@@ -202,6 +202,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     }
   }
 
+  Map<String, dynamic>? _pendingAction;
+
   void _listen() async {
     if (!_isListening) {
       bool available = await _speech.initialize(
@@ -259,47 +261,42 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void _processCommand(String text) async {
     if (text.isEmpty) return;
 
+    final lowerText = text.toLowerCase().trim();
+
+    // Check if we are waiting for a confirmation (state machine)
+    if (_pendingAction != null) {
+      if (lowerText == 'ha' || lowerText == 'yes' || lowerText == 'да') {
+        _addToHistory(text, AppLocalizations.of(context)!.actionConfirmed);
+        _executeCommandNative(text, _pendingAction!);
+      } else {
+        _addToHistory(text, AppLocalizations.of(context)!.actionCancelled);
+      }
+      _pendingAction = null;
+      return;
+    }
+
     final command = CommandParser.parse(text, _localeId.split('_')[0]);
 
     if (command['action'] == 'unknown') {
       _addToHistory(text, AppLocalizations.of(context)!.notUnderstood);
       return;
+    } else if (command['action'] == 'unknown_time') {
+      _addToHistory(text, AppLocalizations.of(context)!.unknownTime);
+      return;
     }
 
     if (command['action'] == 'call') {
       final name = command['params']['name'];
-      _showCallConfirmationDialog(text, name);
+      _pendingAction = command;
+      _addToHistory(text, AppLocalizations.of(context)!.callConfirmationVoice(name));
+    } else if (command['action'] == 'sms') {
+      final name = command['params']['name'];
+      final message = command['params']['message'];
+      _pendingAction = command;
+      _addToHistory(text, AppLocalizations.of(context)!.smsConfirmationVoice(name, message));
     } else {
       _executeCommandNative(text, command);
     }
-  }
-
-  void _showCallConfirmationDialog(String originalText, String name) {
-    final l10n = AppLocalizations.of(context)!;
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(l10n.callConfirmation(name)),
-          actions: <Widget>[
-            TextButton(
-              child: Text(l10n.no),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _addToHistory(originalText, "Qo'ng'iroq bekor qilindi");
-              },
-            ),
-            TextButton(
-              child: Text(l10n.yes),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _executeCommandNative(originalText, {"action": "call", "params": {"name": name}});
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _executeCommandNative(String originalText, Map<String, dynamic> command) async {
@@ -307,9 +304,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       final result = await platform.invokeMethod('executeCommand', command);
       if (result is Map) {
         // Successful match might return exact matched name
-        if (command['action'] == 'call') {
+        if (command['action'] == 'call' || command['action'] == 'sms') {
            final matchedName = result['matchedName'] ?? command['params']['name'];
-           _addToHistory(originalText, "Qo'ng'iroq qilinmoqda: $matchedName");
+           _addToHistory(originalText, "Bajarildi: $matchedName");
         } else if (command['action'] == 'open_app') {
            final matchedApp = result['matchedApp'] ?? command['params']['appName'];
            _addToHistory(originalText, "Ochilmoqda: $matchedApp");

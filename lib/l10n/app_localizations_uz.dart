@@ -28,6 +28,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get phonePermission => 'Qo\'ng\'iroq';
 
   @override
+  String get smsPermission => 'SMS Yuborish';
+
+  @override
   String get accessibilityPermission => 'Maxsus Imkoniyatlar (Accessibility)';
 
   @override
@@ -40,11 +43,20 @@ class AppLocalizationsUz extends AppLocalizations {
   String get overlayPermission => 'Boshqa ilovalar ustida chizish';
 
   @override
+  String get writeSettingsPermission =>
+      'Tizim sozlamalarini o\'zgartirish (Yorqinlik)';
+
+  @override
   String get continueButton => 'Davom etish';
 
   @override
-  String callConfirmation(String name) {
-    return '${name}ga qo\'ng\'iroq qilaymi?';
+  String callConfirmationVoice(String name) {
+    return '${name}ga qo\'ng\'iroq qilaymi? (Ha/Yo\'q)';
+  }
+
+  @override
+  String smsConfirmationVoice(String name, String message) {
+    return '${name}ga \'$message\' deb yozaymi? (Ha/Yo\'q)';
   }
 
   @override
@@ -52,6 +64,16 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get no => 'Yo\'q';
+
+  @override
+  String get actionConfirmed => 'Bajarilmoqda.';
+
+  @override
+  String get actionCancelled => 'Bekor qilindi.';
+
+  @override
+  String get unknownTime =>
+      'Vaqtni tushunmadim, masalan \'7:30 da uyg\'ot\' deb ayting.';
 
   @override
   String get notUnderstood => 'Tushunmadim';

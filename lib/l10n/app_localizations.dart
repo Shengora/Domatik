@@ -136,6 +136,12 @@ abstract class AppLocalizations {
   /// **'Qo\'ng\'iroq'**
   String get phonePermission;
 
+  /// No description provided for @smsPermission.
+  ///
+  /// In uz, this message translates to:
+  /// **'SMS Yuborish'**
+  String get smsPermission;
+
   /// No description provided for @accessibilityPermission.
   ///
   /// In uz, this message translates to:
@@ -160,17 +166,29 @@ abstract class AppLocalizations {
   /// **'Boshqa ilovalar ustida chizish'**
   String get overlayPermission;
 
+  /// No description provided for @writeSettingsPermission.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tizim sozlamalarini o\'zgartirish (Yorqinlik)'**
+  String get writeSettingsPermission;
+
   /// No description provided for @continueButton.
   ///
   /// In uz, this message translates to:
   /// **'Davom etish'**
   String get continueButton;
 
-  /// No description provided for @callConfirmation.
+  /// No description provided for @callConfirmationVoice.
   ///
   /// In uz, this message translates to:
-  /// **'{name}ga qo\'ng\'iroq qilaymi?'**
-  String callConfirmation(String name);
+  /// **'{name}ga qo\'ng\'iroq qilaymi? (Ha/Yo\'q)'**
+  String callConfirmationVoice(String name);
+
+  /// No description provided for @smsConfirmationVoice.
+  ///
+  /// In uz, this message translates to:
+  /// **'{name}ga \'{message}\' deb yozaymi? (Ha/Yo\'q)'**
+  String smsConfirmationVoice(String name, String message);
 
   /// No description provided for @yes.
   ///
@@ -183,6 +201,24 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Yo\'q'**
   String get no;
+
+  /// No description provided for @actionConfirmed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bajarilmoqda.'**
+  String get actionConfirmed;
+
+  /// No description provided for @actionCancelled.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bekor qilindi.'**
+  String get actionCancelled;
+
+  /// No description provided for @unknownTime.
+  ///
+  /// In uz, this message translates to:
+  /// **'Vaqtni tushunmadim, masalan \'7:30 da uyg\'ot\' deb ayting.'**
+  String get unknownTime;
 
   /// No description provided for @notUnderstood.
   ///

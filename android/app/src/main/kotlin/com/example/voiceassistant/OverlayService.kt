@@ -227,6 +227,62 @@ class OverlayService : Service() {
                 VoiceAccessibilityService.instance?.stopSwiping()
                 updateStatus("Stopped swiping")
             }
+            "sms" -> {
+                val name = params["name"] as? String
+                val message = params["message"] as? String
+                if (name != null && message != null) {
+                    val contactInfo = nativeCommandsHelper.getPhoneNumberByName(name)
+                    if (contactInfo != null) {
+                        nativeCommandsHelper.sendSms(contactInfo.second, message)
+                        updateStatus("SMS sent to: ${contactInfo.first}")
+                    } else {
+                        updateStatus("Contact not found")
+                    }
+                }
+            }
+            "control_wifi" -> {
+                nativeCommandsHelper.controlWifi()
+                updateStatus("Opening Wi-Fi settings")
+            }
+            "control_bluetooth" -> {
+                val turnOn = params["turnOn"] as? Boolean ?: true
+                nativeCommandsHelper.controlBluetooth(turnOn)
+                updateStatus(if (turnOn) "Bluetooth ON" else "Bluetooth OFF")
+            }
+            "control_flashlight" -> {
+                val turnOn = params["turnOn"] as? Boolean ?: true
+                nativeCommandsHelper.controlFlashlight(turnOn)
+                updateStatus(if (turnOn) "Flashlight ON" else "Flashlight OFF")
+            }
+            "control_volume" -> {
+                val stream = params["stream"] as? String ?: "music"
+                val direction = params["direction"] as? String ?: "up"
+                val level = params["level"] as? Int
+                nativeCommandsHelper.controlVolume(stream, direction, level)
+                updateStatus("Adjusting volume")
+            }
+            "control_brightness" -> {
+                val direction = params["direction"] as? String ?: "up"
+                val level = params["level"] as? Int
+                nativeCommandsHelper.controlBrightness(direction, level)
+                updateStatus("Adjusting brightness")
+            }
+            "set_alarm" -> {
+                val hour = params["hour"] as? Int ?: 7
+                val minute = params["minute"] as? Int ?: 0
+                nativeCommandsHelper.setAlarm(hour, minute)
+                updateStatus("Alarm set for $hour:$minute")
+            }
+            "set_timer" -> {
+                val minutes = params["minutes"] as? Int ?: 5
+                nativeCommandsHelper.setTimer(minutes)
+                updateStatus("Timer set for $minutes min")
+            }
+            "web_search" -> {
+                val query = params["query"] as? String ?: ""
+                nativeCommandsHelper.webSearch(query)
+                updateStatus("Searching: $query")
+            }
             else -> {
                 updateStatus("Action unknown")
             }

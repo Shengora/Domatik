@@ -28,6 +28,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get phonePermission => 'Phone Call';
 
   @override
+  String get smsPermission => 'Send SMS';
+
+  @override
   String get accessibilityPermission => 'Accessibility';
 
   @override
@@ -40,11 +43,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get overlayPermission => 'Display over other apps';
 
   @override
+  String get writeSettingsPermission => 'Modify system settings (Brightness)';
+
+  @override
   String get continueButton => 'Continue';
 
   @override
-  String callConfirmation(String name) {
-    return 'Call $name?';
+  String callConfirmationVoice(String name) {
+    return 'Should I call $name? (Yes/No)';
+  }
+
+  @override
+  String smsConfirmationVoice(String name, String message) {
+    return 'Should I send \'$message\' to $name? (Yes/No)';
   }
 
   @override
@@ -52,6 +63,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get no => 'No';
+
+  @override
+  String get actionConfirmed => 'Confirmed.';
+
+  @override
+  String get actionCancelled => 'Cancelled.';
+
+  @override
+  String get unknownTime =>
+      'I couldn\'t understand the time. Try \'wake me at 7:30\'.';
 
   @override
   String get notUnderstood => 'I didn\'t understand';

@@ -13,7 +13,7 @@ class CommandParser {
   };
 
   static final Map<String, List<String>> _smsSynonyms = {
-    'uz': ['xabar yubor', 'xabar yoz', 'sms yubor', 'sms yoz', 'sms jo\'nat', 'xat yoz'],
+    'uz': ['deb yoz', 'xabar yubor', 'xabar yoz', 'sms yubor', 'sms yoz', 'sms jo\'nat', 'xat yoz'],
     'ru': ['отправь смс', 'напиши сообщение', 'сообщение'],
     'en': ['send message', 'text', 'sms'],
   };
@@ -30,8 +30,61 @@ class CommandParser {
     'en': ['pause', 'stop', 'halt'],
   };
 
+  static final Map<String, List<String>> _wifiSynonyms = {
+    'uz': ['wi-fi ni', 'wi-fini', 'wifini', 'wifi ni', 'wi-fi', 'wifi', 'vayfay'],
+    'ru': ['wi-fi', 'вай-фай', 'wifi'],
+    'en': ['wi-fi', 'wifi'],
+  };
+
+  static final Map<String, List<String>> _bluetoothSynonyms = {
+    'uz': ['bluetooth ni', 'bluetoothni', 'bluetooth', 'blyutuzni', 'blyutuz'],
+    'ru': ['bluetooth', 'блютуз'],
+    'en': ['bluetooth'],
+  };
+
+  static final Map<String, List<String>> _flashlightSynonyms = {
+    'uz': ['chiroqni', 'chiroq', 'fonar'],
+    'ru': ['фонарик', 'фонарь', 'свет'],
+    'en': ['flashlight', 'torch', 'light'],
+  };
+
+  static final Map<String, List<String>> _volumeSynonyms = {
+    'uz': ['ovozini', 'ovozni', 'ovoz'],
+    'ru': ['звук', 'громкость'],
+    'en': ['volume', 'sound'],
+  };
+
+  static final Map<String, List<String>> _brightnessSynonyms = {
+    'uz': ['yorug\'likni', 'yorug\'lik', 'yorqinlikni', 'yorqinlik', 'ekran nurini', 'nurni'],
+    'ru': ['яркость', 'свет экрана'],
+    'en': ['brightness', 'screen light'],
+  };
+
+  static final Map<String, List<String>> _alarmSynonyms = {
+    'uz': ['da uyg\'ot', 'uyg\'ot'],
+    'ru': ['разбуди в', 'разбуди', 'будильник на'],
+    'en': ['wake me up at', 'wake me at', 'set alarm for'],
+  };
+
+  static final Map<String, List<String>> _timerSynonyms = {
+    'uz': ['daqiqalik taymer', 'taymer qo\'y', 'taymer'],
+    'ru': ['таймер на', 'поставь таймер'],
+    'en': ['timer for', 'set timer'],
+  };
+
+  static final Map<String, List<String>> _webSearchSynonyms = {
+    'uz': ['google da qidir', 'googleda qidir', 'internetdan top', 'qidir', 'top'],
+    'ru': ['найди в гугле', 'найди в интернете', 'поиск', 'найди'],
+    'en': ['search google for', 'search for', 'find online', 'search'],
+  };
+
+  static final List<String> _turnOnSynonyms = ['yoq', 'qo\'y', 'включи', 'включить', 'turn on', 'enable'];
+  static final List<String> _turnOffSynonyms = ['o\'chir', 'o\'chirib', 'выключи', 'выключить', 'turn off', 'disable'];
+  static final List<String> _increaseSynonyms = ['oshir', 'ko\'paytir', 'balandlat', 'увеличь', 'повысь', 'increase', 'raise', 'up'];
+  static final List<String> _decreaseSynonyms = ['pasaytir', 'kamaytir', 'уменьши', 'снизь', 'decrease', 'lower', 'down'];
+
   // Filler words that are truly unnecessary regardless of context.
-  // Note: "qil", "ber", "yubor" are removed from here because they are part of intents (e.g. "telefon qil").
+  // Note: "qil", "ber", "yubor", "deb", "ga" are handled situationally to preserve semantics.
   // They will be handled explicitly if they remain dangling.
   static final List<String> _fillerWords = [
     'iltimos', 'endi', 'keyin', 'qani', 'sot', 'sotib', 'ol'
@@ -63,14 +116,151 @@ class CommandParser {
       return {'action': 'swipe', 'params': {'direction': direction, 'count': 1}};
     }
 
-    // 3. Check for "SMS"
+    // Check for "Web Search"
+    String? searchKeyword = _findKeyword(lowerText, _webSearchSynonyms[localeCode] ?? []);
+    if (searchKeyword != null) {
+      String query = lowerText.replaceAll(RegExp(r'\b' + searchKeyword + r'\b'), '').trim();
+      // specifically remove "google'da" variations
+      query = query.replaceAll(RegExp(r"google(\s*)?['`]?(da)?", caseSensitive: false), "").trim();
+      // clean suffix
+      if (localeCode == 'uz') {
+        query = query.replaceAll(RegExp(r"['`]?ni$"), "").trim();
+      }
+      if (query.isNotEmpty) {
+        return {'action': 'web_search', 'params': {'query': query}};
+      }
+    }
+
+    // Check for "System Control: Wi-Fi"
+    if (_matchesIntent(lowerText, _wifiSynonyms[localeCode] ?? [])) {
+      bool turnOn = _matchesIntent(lowerText, _turnOnSynonyms);
+      return {'action': 'control_wifi', 'params': {'turnOn': turnOn}};
+    }
+
+    // Check for "System Control: Bluetooth"
+    if (_matchesIntent(lowerText, _bluetoothSynonyms[localeCode] ?? [])) {
+      bool turnOn = _matchesIntent(lowerText, _turnOnSynonyms);
+      return {'action': 'control_bluetooth', 'params': {'turnOn': turnOn}};
+    }
+
+    // Check for "System Control: Flashlight"
+    if (_matchesIntent(lowerText, _flashlightSynonyms[localeCode] ?? [])) {
+      bool turnOn = _matchesIntent(lowerText, _turnOnSynonyms);
+      return {'action': 'control_flashlight', 'params': {'turnOn': turnOn}};
+    }
+
+    // Check for "System Control: Volume"
+    if (_matchesIntent(lowerText, _volumeSynonyms[localeCode] ?? [])) {
+      bool increase = _matchesIntent(lowerText, _increaseSynonyms);
+      bool decrease = _matchesIntent(lowerText, _decreaseSynonyms);
+
+      String stream = "music";
+      if (lowerText.contains("qo'ng'iroq") || lowerText.contains("звонок") || lowerText.contains("ring")) stream = "ring";
+      if (lowerText.contains("budilnik") || lowerText.contains("будильник") || lowerText.contains("alarm")) stream = "alarm";
+
+      int? level;
+      final digitMatch = RegExp(r'\d+').firstMatch(lowerText);
+      if (digitMatch != null) {
+        level = int.tryParse(digitMatch.group(0)!);
+      }
+
+      String direction = increase ? "up" : (decrease ? "down" : "set");
+      if (direction == "set" && level == null) direction = "up"; // fallback default
+
+      return {'action': 'control_volume', 'params': {'stream': stream, 'direction': direction, 'level': level}};
+    }
+
+    // Check for "System Control: Brightness"
+    if (_matchesIntent(lowerText, _brightnessSynonyms[localeCode] ?? [])) {
+      bool increase = _matchesIntent(lowerText, _increaseSynonyms);
+      bool decrease = _matchesIntent(lowerText, _decreaseSynonyms);
+
+      int? level;
+      final digitMatch = RegExp(r'\d+').firstMatch(lowerText);
+      if (digitMatch != null) {
+        level = int.tryParse(digitMatch.group(0)!);
+      }
+
+      String direction = increase ? "up" : (decrease ? "down" : "set");
+      if (direction == "set" && level == null) direction = "up";
+
+      return {'action': 'control_brightness', 'params': {'direction': direction, 'level': level}};
+    }
+
+    // Check for "Alarm"
+    String? alarmKeyword = _findKeyword(lowerText, _alarmSynonyms[localeCode] ?? []);
+    if (alarmKeyword != null) {
+       int hour = 0;
+       int minute = 0;
+       bool foundTime = false;
+       final timeMatch = RegExp(r'(\d{1,2})[\s:.]?(\d{2})?').firstMatch(lowerText);
+       if (timeMatch != null) {
+          hour = int.parse(timeMatch.group(1)!);
+          minute = timeMatch.group(2) != null ? int.parse(timeMatch.group(2)!) : 0;
+          foundTime = true;
+       } else {
+          // parse word numbers for uzbek (basic: yetti, sakkiz etc.)
+          Map<String, int> wordsMap = {
+            'bir': 1, 'ikki': 2, 'uch': 3, 'to\'rt': 4, 'besh': 5, 'olti': 6, 'yetti': 7, 'sakkiz': 8, 'to\'qqiz': 9, 'o\'n': 10, 'o\'n bir': 11, 'o\'n ikki': 12
+          };
+          for (var entry in wordsMap.entries) {
+            if (lowerText.contains(entry.key)) {
+               hour = entry.value;
+               foundTime = true;
+               break;
+            }
+          }
+       }
+
+       if (foundTime) {
+          if (lowerText.contains("yarim") || lowerText.contains("половина")) minute = 30;
+          return {'action': 'set_alarm', 'params': {'hour': hour, 'minute': minute}};
+       }
+       return {'action': 'unknown_time', 'params': {}};
+    }
+
+    // Check for "Timer"
+    String? timerKeyword = _findKeyword(lowerText, _timerSynonyms[localeCode] ?? []);
+    if (timerKeyword != null) {
+       final digitMatch = RegExp(r'\d+').firstMatch(lowerText);
+       if (digitMatch != null) {
+          int minutes = int.parse(digitMatch.group(0)!);
+          return {'action': 'set_timer', 'params': {'minutes': minutes}};
+       }
+       return {'action': 'unknown_time', 'params': {}};
+    }
+
+    // Check for "SMS"
+    // Templates: "[ism]ga [matn] deb yoz", "[ism]ga sms yubor: [matn]"
     String? smsKeyword = _findKeyword(lowerText, _smsSynonyms[localeCode] ?? []);
     if (smsKeyword != null) {
-      String target = lowerText.replaceAll(RegExp(r'\b' + smsKeyword + r'\b'), '').trim();
-      target = _cleanTargetName(target, localeCode);
-      if (target.isNotEmpty) {
-        // We will map SMS to an intent (maybe not implemented natively yet, but parser is ready)
-        return {'action': 'sms', 'params': {'name': target}};
+      // Find the keyword position to split Name vs Message.
+      // Usually format is "[Name]ga sms yoz [Message]" or "[Name]ga [Message] deb sms yoz"
+
+      String targetName = "";
+      String message = "";
+
+      if (localeCode == 'uz') {
+         // Naive extraction for "ismga xabar yoz matn" or "ismga matn deb xabar yubor"
+         if (lowerText.contains('deb')) {
+            var parts = lowerText.split('deb');
+            message = parts[0].trim();
+            targetName = message.split(' ').first; // take first word as name
+            message = message.substring(targetName.length).trim(); // rest is message
+         } else {
+            var parts = lowerText.split(smsKeyword);
+            targetName = parts[0].trim();
+            message = parts.length > 1 ? parts[1].trim() : "";
+         }
+      } else {
+         var parts = lowerText.split(smsKeyword);
+         targetName = parts[0].trim();
+         message = parts.length > 1 ? parts[1].trim() : "";
+      }
+
+      targetName = _cleanTargetName(targetName, localeCode);
+      if (targetName.isNotEmpty) {
+        return {'action': 'sms', 'params': {'name': targetName, 'message': message}};
       }
     }
 

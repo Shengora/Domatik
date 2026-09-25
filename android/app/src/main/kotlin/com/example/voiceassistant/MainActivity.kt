@@ -28,6 +28,17 @@ class MainActivity : FlutterActivity() {
                     startActivity(intent)
                     result.success(true)
                 }
+                "canWriteSettings" -> {
+                    result.success(android.provider.Settings.System.canWrite(this))
+                }
+                "requestWriteSettingsPermission" -> {
+                    val intent = Intent(
+                        android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                        android.net.Uri.parse("package:$packageName")
+                    )
+                    startActivity(intent)
+                    result.success(true)
+                }
                 "openVoiceSettings" -> {
                     try {
                         val intent = Intent(android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS)
@@ -158,6 +169,64 @@ class MainActivity : FlutterActivity() {
                 } else {
                     result.error("SERVICE_NOT_RUNNING", "Accessibility Service is not running", null)
                 }
+            }
+            "sms" -> {
+                val name = params["name"] as? String
+                val message = params["message"] as? String
+                if (name != null && message != null) {
+                    val contactInfo = nativeCommandsHelper.getPhoneNumberByName(name)
+                    if (contactInfo != null) {
+                        nativeCommandsHelper.sendSms(contactInfo.second, message)
+                        result.success(mapOf("matchedName" to contactInfo.first))
+                    } else {
+                        result.error("CONTACT_NOT_FOUND", "Could not find contact: $name", null)
+                    }
+                } else {
+                    result.error("INVALID_ARGS", "Contact name and message are required", null)
+                }
+            }
+            "control_wifi" -> {
+                nativeCommandsHelper.controlWifi()
+                result.success(true)
+            }
+            "control_bluetooth" -> {
+                val turnOn = params["turnOn"] as? Boolean ?: true
+                nativeCommandsHelper.controlBluetooth(turnOn)
+                result.success(true)
+            }
+            "control_flashlight" -> {
+                val turnOn = params["turnOn"] as? Boolean ?: true
+                nativeCommandsHelper.controlFlashlight(turnOn)
+                result.success(true)
+            }
+            "control_volume" -> {
+                val stream = params["stream"] as? String ?: "music"
+                val direction = params["direction"] as? String ?: "up"
+                val level = params["level"] as? Int
+                nativeCommandsHelper.controlVolume(stream, direction, level)
+                result.success(true)
+            }
+            "control_brightness" -> {
+                val direction = params["direction"] as? String ?: "up"
+                val level = params["level"] as? Int
+                nativeCommandsHelper.controlBrightness(direction, level)
+                result.success(true)
+            }
+            "set_alarm" -> {
+                val hour = params["hour"] as? Int ?: 7
+                val minute = params["minute"] as? Int ?: 0
+                nativeCommandsHelper.setAlarm(hour, minute)
+                result.success(true)
+            }
+            "set_timer" -> {
+                val minutes = params["minutes"] as? Int ?: 5
+                nativeCommandsHelper.setTimer(minutes)
+                result.success(true)
+            }
+            "web_search" -> {
+                val query = params["query"] as? String ?: ""
+                nativeCommandsHelper.webSearch(query)
+                result.success(true)
             }
             else -> {
                 result.error("UNKNOWN_ACTION", "Action not supported", null)

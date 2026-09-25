@@ -6,21 +6,37 @@
   "microphonePermission": "Mikrofon",
   "contactsPermission": "Kontaktlar",
   "phonePermission": "Qo'ng'iroq",
+  "smsPermission": "SMS Yuborish",
   "accessibilityPermission": "Maxsus Imkoniyatlar (Accessibility)",
   "openSettings": "Sozlamalarni ochish",
   "grantPermission": "Ruxsat berish",
   "overlayPermission": "Boshqa ilovalar ustida chizish",
+  "writeSettingsPermission": "Tizim sozlamalarini o'zgartirish (Yorqinlik)",
   "continueButton": "Davom etish",
-  "callConfirmation": "{name}ga qo'ng'iroq qilaymi?",
-  "@callConfirmation": {
+  "callConfirmationVoice": "{name}ga qo'ng'iroq qilaymi? (Ha/Yo'q)",
+  "@callConfirmationVoice": {
     "placeholders": {
       "name": {
         "type": "String"
       }
     }
   },
+  "smsConfirmationVoice": "{name}ga '{message}' deb yozaymi? (Ha/Yo'q)",
+  "@smsConfirmationVoice": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
   "yes": "Ha",
   "no": "Yo'q",
+  "actionConfirmed": "Bajarilmoqda.",
+  "actionCancelled": "Bekor qilindi.",
+  "unknownTime": "Vaqtni tushunmadim, masalan '7:30 da uyg'ot' deb ayting.",
   "notUnderstood": "Tushunmadim",
   "listening": "Eshitmoqhaman...",
   "statusReady": "Tayyor",
