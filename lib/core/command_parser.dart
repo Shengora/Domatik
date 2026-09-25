@@ -1,42 +1,53 @@
 class CommandParser {
+  // Sort synonyms by length descending so we match "ochib yubor" before "och"
   static final Map<String, List<String>> _openAppSynonyms = {
-    'uz': ['och', 'kir', 'ochib ber', 'ochib yubor', 'kirsam', 'yoq'],
-    'ru': ['открой', 'запусти', 'войди в', 'включи'],
-    'en': ['open', 'start', 'launch', 'run'],
+    'uz': ['ochib yubor', 'ochib ber', 'kirsam', 'yoq', 'och', 'kir'],
+    'ru': ['запусти', 'открой', 'войди в', 'включи'],
+    'en': ['launch', 'start', 'open', 'run'],
   };
 
   static final Map<String, List<String>> _callSynonyms = {
-    'uz': ['telefon qil', 'qo\'ng\'iroq qil', 'qongiroq qil', 'telefon qilib yubor', 'chaqir', 'ter', 'telefon qiling', 'qo\'ng\'iroq qiling'],
+    'uz': ['telefon qilib yubor', 'qo\'ng\'iroq qiling', 'qo\'ng\'iroq qil', 'qongiroq qil', 'telefon qiling', 'telefon qil', 'chaqir', 'ter'],
     'ru': ['позвони', 'набери', 'вызови', 'звонок'],
-    'en': ['call', 'dial', 'phone'],
+    'en': ['phone', 'call', 'dial'],
+  };
+
+  static final Map<String, List<String>> _smsSynonyms = {
+    'uz': ['xabar yubor', 'xabar yoz', 'sms yubor', 'sms yoz', 'sms jo\'nat', 'xat yoz'],
+    'ru': ['отправь смс', 'напиши сообщение', 'сообщение'],
+    'en': ['send message', 'text', 'sms'],
   };
 
   static final Map<String, List<String>> _swipeSynonyms = {
-    'uz': ['tepaga', 'pastga', 'o\'tka', 'sur', 'o\'tkaz', 'skrol qil'],
-    'ru': ['вверх', 'вниз', 'свайп', 'пролистай', 'прокрути'],
-    'en': ['up', 'down', 'swipe', 'scroll'],
+    'uz': ['skrol qil', 'tepaga', 'pastga', 'o\'tkaz', 'o\'tka', 'sur'],
+    'ru': ['пролистай', 'прокрути', 'свайп', 'вверх', 'вниз'],
+    'en': ['scroll', 'swipe', 'down', 'up'],
   };
 
   static final Map<String, List<String>> _stopSwipeSynonyms = {
     'uz': ['to\'xtat', 'to\'xta', 'bas'],
-    'ru': ['стоп', 'хватит', 'останови'],
-    'en': ['stop', 'halt', 'pause'],
+    'ru': ['останови', 'хватит', 'стоп'],
+    'en': ['pause', 'stop', 'halt'],
   };
 
+  // Filler words that are truly unnecessary regardless of context.
+  // Note: "qil", "ber", "yubor" are removed from here because they are part of intents (e.g. "telefon qil").
+  // They will be handled explicitly if they remain dangling.
   static final List<String> _fillerWords = [
-    'iltimos', 'endi', 'keyin', 'qani', 'qilib', 'yubor', 'chiq', 'qil', 'ber', 'sot', 'sotib', 'ol'
+    'iltimos', 'endi', 'keyin', 'qani', 'sot', 'sotib', 'ol'
   ];
 
   static Map<String, dynamic> parse(String text, String localeCode) {
     String lowerText = text.toLowerCase().trim();
 
-    // Remove filler words safely (only if they are standalone words)
-    for (String filler in _fillerWords) {
-      lowerText = lowerText.replaceAll(RegExp(r'\b' + filler + r'\b'), '').trim();
-    }
-
     // Normalize spaces
     lowerText = lowerText.replaceAll(RegExp(r'\s+'), ' ');
+
+    // Remove safe filler words BEFORE intent matching
+    for (String filler in _fillerWords) {
+      lowerText = lowerText.replaceAll(RegExp(r'\b' + filler + r'\b'), '').trim();
+      lowerText = lowerText.replaceAll(RegExp(r'\s+'), ' '); // re-normalize
+    }
 
     // 1. Check for "Stop Swipe"
     if (_matchesIntent(lowerText, _stopSwipeSynonyms[localeCode] ?? [])) {
@@ -52,34 +63,45 @@ class CommandParser {
       return {'action': 'swipe', 'params': {'direction': direction, 'count': 1}};
     }
 
-    // 3. Check for "Call"
+    // 3. Check for "SMS"
+    String? smsKeyword = _findKeyword(lowerText, _smsSynonyms[localeCode] ?? []);
+    if (smsKeyword != null) {
+      String target = lowerText.replaceAll(RegExp(r'\b' + smsKeyword + r'\b'), '').trim();
+      target = _cleanTargetName(target, localeCode);
+      if (target.isNotEmpty) {
+        // We will map SMS to an intent (maybe not implemented natively yet, but parser is ready)
+        return {'action': 'sms', 'params': {'name': target}};
+      }
+    }
+
+    // 4. Check for "Call"
     String? callKeyword = _findKeyword(lowerText, _callSynonyms[localeCode] ?? []);
     if (callKeyword != null) {
-      String target = lowerText.replaceAll(callKeyword, '').trim();
+      // Remove exactly the keyword
+      String target = lowerText.replaceAll(RegExp(r'\b' + callKeyword + r'\b'), '').trim();
       target = _cleanTargetName(target, localeCode);
       if (target.isNotEmpty) {
         return {'action': 'call', 'params': {'name': target}};
       }
     }
 
-    // 4. Check for "Open App"
+    // 5. Check for "Open App"
     String? openKeyword = _findKeyword(lowerText, _openAppSynonyms[localeCode] ?? []);
     if (openKeyword != null) {
-      String target = lowerText.replaceAll(openKeyword, '').trim();
+      String target = lowerText.replaceAll(RegExp(r'\b' + openKeyword + r'\b'), '').trim();
       target = _cleanTargetName(target, localeCode);
       if (target.isNotEmpty) {
          return {'action': 'open_app', 'params': {'appName': target}};
       }
     }
 
-    // Fallback: Default to open app if it's just one word and we're not sure,
-    // or return unknown. Based on requirements, better to be strict and return unknown.
+    // Fallback
     return {'action': 'unknown', 'params': {}};
   }
 
   static bool _matchesIntent(String text, List<String> synonyms) {
     for (String synonym in synonyms) {
-      if (text.contains(synonym)) {
+      if (text.contains(RegExp(r'\b' + synonym + r'\b'))) {
         return true;
       }
     }
@@ -88,7 +110,7 @@ class CommandParser {
 
   static String? _findKeyword(String text, List<String> synonyms) {
     for (String synonym in synonyms) {
-      if (text.contains(synonym)) {
+      if (text.contains(RegExp(r'\b' + synonym + r'\b'))) {
         return synonym;
       }
     }
@@ -100,27 +122,25 @@ class CommandParser {
 
     String cleaned = name.trim();
 
+    // 1. Clean dangling verbs from end (e.g., if someone says "Dilshodga qilib yubor", and 'qil' was missed)
+    final List<String> danglingVerbs = ['qilib', 'qil', 'yubor', 'ber'];
+    for (String verb in danglingVerbs) {
+       cleaned = cleaned.replaceAll(RegExp(r'\b' + verb + r'\b$'), '').trim();
+    }
+
     if (localeCode == 'uz') {
       // Remove Uzbek grammatical suffixes (accusative, dative, locative, ablative)
-      // using regex to match them at the end of the word.
-      // E.g., Dilshodga -> Dilshod, Telegramni -> Telegram, Chrome'ni -> Chrome, Whatsapp'ga -> Whatsapp
-
-      cleaned = cleaned.replaceAll(RegExp(r"['`]?([nN]i|[gG]a|[dD]an|[dD]a|[qQ]a|[kK]a|[nN]ing)$"), "");
-
-      // Secondary pass if there are multiple words (e.g. "Dilshod Aliyevga")
+      // E.g., Dilshodga -> Dilshod, Telegramni -> Telegram
       List<String> words = cleaned.split(' ');
       if (words.isNotEmpty) {
         words[words.length - 1] = words[words.length - 1].replaceAll(RegExp(r"['`]?([nN]i|[gG]a|[dD]an|[dD]a|[qQ]a|[kK]a|[nN]ing)$"), "");
         cleaned = words.join(' ');
       }
     } else if (localeCode == 'ru') {
-       // Russian morphological endings are harder with simple regex, but we can do basic trimming
-       // like "в Telegram" -> "Telegram" or "позвони Алексею" -> "Алексею" (Contact search will use partial match anyway).
+       // "в Telegram", "позвони Алексею" (Russian suffixes are harder, partial match will handle it)
        cleaned = cleaned.replaceAll(RegExp(r"^(в|на|к)\s+"), "");
     }
 
-    // Capitalize first letter of each word to help with contact/app searching
-    // (though Kotlin native side will also use ignoreCase)
     return cleaned;
   }
 }

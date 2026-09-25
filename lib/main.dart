@@ -145,9 +145,30 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   void _listen() async {
     if (!_isListening) {
-      bool available = await _speech.initialize();
+      bool available = await _speech.initialize(
+        onStatus: (status) {
+          debugPrint('SpeechToText Status: $status');
+          if (status == 'done' || status == 'notListening') {
+            setState(() => _isListening = false);
+            if (_text.isNotEmpty && _speech.isNotListening) {
+               // The STT stopped naturally (e.g. timeout or silence). Process what we have.
+               _processCommand(_text);
+               _text = '';
+            }
+          }
+        },
+        onError: (errorNotification) {
+          debugPrint('SpeechToText Error: $errorNotification');
+          setState(() => _isListening = false);
+          _addToHistory("Xatolik", "Mikrofon xatosi: ${errorNotification.errorMsg}");
+        },
+      );
+
       if (available) {
-        setState(() => _isListening = true);
+        setState(() {
+          _isListening = true;
+          _text = '';
+        });
         _speech.listen(
           onResult: (val) {
             setState(() {
@@ -155,16 +176,22 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             });
             if (val.finalResult) {
               _processCommand(val.recognizedWords);
+              _text = '';
             }
           },
+          listenFor: const Duration(seconds: 15),
+          pauseFor: const Duration(seconds: 3),
           localeId: _localeId,
         );
+      } else {
+         _addToHistory("Xatolik", "Mikrofonga ulanib bo'lmadi yoki ruxsat yo'q.");
       }
     } else {
       setState(() => _isListening = false);
       _speech.stop();
       if (_text.isNotEmpty) {
         _processCommand(_text);
+        _text = '';
       }
     }
   }
