@@ -31,10 +31,23 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   Locale? _locale;
+  late bool _onboardingCompleted;
+
+  @override
+  void initState() {
+    super.initState();
+    _onboardingCompleted = widget.onboardingCompleted;
+  }
 
   void setLocale(Locale locale) {
     setState(() {
       _locale = locale;
+    });
+  }
+
+  void completeOnboarding() {
+    setState(() {
+      _onboardingCompleted = true;
     });
   }
 
@@ -54,12 +67,8 @@ class _MyAppState extends State<MyApp> {
         Locale('ru'),
         Locale('en'),
       ],
-      home: widget.onboardingCompleted ? const MainScreen() : OnboardingScreen(
-        onComplete: () {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const MainScreen()),
-          );
-        },
+      home: _onboardingCompleted ? const MainScreen() : OnboardingScreen(
+        onComplete: completeOnboarding,
       ),
     );
   }
@@ -78,6 +87,16 @@ class _MainScreenState extends State<MainScreen> {
   bool _isListening = false;
   String _text = '';
   String _localeId = 'uz_UZ';
+  final List<String> _history = [];
+
+  void _addToHistory(String rawText, String result) {
+    setState(() {
+      _history.insert(0, "🗣: $rawText\n🤖: $result");
+      if (_history.length > 10) {
+        _history.removeLast();
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -110,47 +129,45 @@ class _MainScreenState extends State<MainScreen> {
       if (available) {
         setState(() => _isListening = true);
         _speech.listen(
-          onResult: (val) => setState(() {
-            _text = val.recognizedWords;
-            if (val.hasConfidenceRating && val.confidence > 0) {
-              if (_speech.isNotListening || val.finalResult) {
-                _processCommand(_text);
-              }
+          onResult: (val) {
+            setState(() {
+              _text = val.recognizedWords;
+            });
+            if (val.finalResult) {
+              _processCommand(val.recognizedWords);
             }
-          }),
+          },
           localeId: _localeId,
         );
       }
     } else {
       setState(() => _isListening = false);
       _speech.stop();
-      _processCommand(_text);
+      if (_text.isNotEmpty) {
+        _processCommand(_text);
+      }
     }
   }
 
   void _processCommand(String text) async {
     if (text.isEmpty) return;
 
-    final command = CommandParser.parse(text);
+    final command = CommandParser.parse(text, _localeId.split('_')[0]);
 
     if (command['action'] == 'unknown') {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.notUnderstood)),
-        );
-      }
+      _addToHistory(text, AppLocalizations.of(context)!.notUnderstood);
       return;
     }
 
     if (command['action'] == 'call') {
       final name = command['params']['name'];
-      _showCallConfirmationDialog(name);
+      _showCallConfirmationDialog(text, name);
     } else {
-      _executeCommandNative(command);
+      _executeCommandNative(text, command);
     }
   }
 
-  void _showCallConfirmationDialog(String name) {
+  void _showCallConfirmationDialog(String originalText, String name) {
     final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
@@ -162,13 +179,14 @@ class _MainScreenState extends State<MainScreen> {
               child: Text(l10n.no),
               onPressed: () {
                 Navigator.of(context).pop();
+                _addToHistory(originalText, "Qo'ng'iroq bekor qilindi");
               },
             ),
             TextButton(
               child: Text(l10n.yes),
               onPressed: () {
                 Navigator.of(context).pop();
-                _executeCommandNative({"action": "call", "params": {"name": name}});
+                _executeCommandNative(originalText, {"action": "call", "params": {"name": name}});
               },
             ),
           ],
@@ -177,11 +195,34 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  void _executeCommandNative(Map<String, dynamic> command) async {
+  void _executeCommandNative(String originalText, Map<String, dynamic> command) async {
     try {
-      await platform.invokeMethod('executeCommand', command);
+      final result = await platform.invokeMethod('executeCommand', command);
+      if (result is Map) {
+        // Successful match might return exact matched name
+        if (command['action'] == 'call') {
+           final matchedName = result['matchedName'] ?? command['params']['name'];
+           _addToHistory(originalText, "Qo'ng'iroq qilinmoqda: $matchedName");
+        } else if (command['action'] == 'open_app') {
+           final matchedApp = result['matchedApp'] ?? command['params']['appName'];
+           _addToHistory(originalText, "Ochilmoqda: $matchedApp");
+        } else {
+           _addToHistory(originalText, "Bajarildi: ${command['action']}");
+        }
+      } else {
+        _addToHistory(originalText, "Bajarildi: ${command['action']}");
+      }
     } on PlatformException catch (e) {
-      debugPrint("Failed to execute command: '${e.message}'.");
+      debugPrint("Failed to execute command: '${e.message}'. Code: ${e.code}");
+      String errorMessage = "Xatolik: ${e.message}";
+      if (e.code == "APP_NOT_FOUND") {
+        errorMessage = "Ilova topilmadi: ${command['params']['appName']}";
+      } else if (e.code == "CONTACT_NOT_FOUND") {
+        errorMessage = "Kontakt topilmadi: ${command['params']['name']}";
+      }
+      _addToHistory(originalText, errorMessage);
+    } catch (e) {
+      _addToHistory(originalText, "Xatolik yuz berdi");
     }
   }
 
@@ -218,31 +259,55 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              _text.isNotEmpty ? _text : (_isListening ? l10n.listening : l10n.statusReady),
-              style: const TextStyle(fontSize: 24),
-              textAlign: TextAlign.center,
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              reverse: true, // Show newest at the bottom, or false to show at top
+              padding: const EdgeInsets.all(16.0),
+              itemCount: _history.length,
+              itemBuilder: (context, index) {
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Text(
+                      _history[index],
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 50),
-            ElevatedButton(
-              onPressed: _listen,
-              style: ElevatedButton.styleFrom(
-                shape: const CircleBorder(),
-                padding: const EdgeInsets.all(40),
-                backgroundColor: _isListening ? Colors.red : Colors.blue,
-              ),
-              child: Icon(
-                _isListening ? Icons.mic : Icons.mic_none,
-                size: 50,
-                color: Colors.white,
-              ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(24.0),
+            color: Colors.grey[200],
+            child: Column(
+              children: [
+                Text(
+                  _text.isNotEmpty ? _text : (_isListening ? l10n.listening : l10n.statusReady),
+                  style: const TextStyle(fontSize: 20),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _listen,
+                  style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(30),
+                    backgroundColor: _isListening ? Colors.red : Colors.blue,
+                  ),
+                  child: Icon(
+                    _isListening ? Icons.mic : Icons.mic_none,
+                    size: 40,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

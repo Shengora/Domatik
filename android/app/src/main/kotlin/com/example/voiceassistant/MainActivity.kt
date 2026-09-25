@@ -68,9 +68,9 @@ class MainActivity : FlutterActivity() {
             "open_app" -> {
                 val appName = params["appName"] as? String
                 if (appName != null) {
-                    val opened = openAppByName(appName)
-                    if (opened) {
-                        result.success(true)
+                    val matchedApp = openAppByName(appName)
+                    if (matchedApp != null) {
+                        result.success(mapOf("matchedApp" to matchedApp))
                     } else {
                         result.error("APP_NOT_FOUND", "Could not find app with name: $appName", null)
                     }
@@ -81,10 +81,10 @@ class MainActivity : FlutterActivity() {
             "call" -> {
                 val name = params["name"] as? String
                 if (name != null) {
-                    val phone = getPhoneNumberByName(name)
-                    if (phone != null) {
-                        makeCall(phone)
-                        result.success(true)
+                    val contactInfo = getPhoneNumberByName(name)
+                    if (contactInfo != null) {
+                        makeCall(contactInfo.second)
+                        result.success(mapOf("matchedName" to contactInfo.first))
                     } else {
                         result.error("CONTACT_NOT_FOUND", "Could not find contact: $name", null)
                     }
@@ -117,47 +117,74 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun openAppByName(appName: String): Boolean {
+    private fun openAppByName(appName: String): String? {
         val pm = packageManager
         val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
 
+        var bestMatch: android.content.pm.ApplicationInfo? = null
+        var bestMatchLabel = ""
+
         for (app in packages) {
             val label = pm.getApplicationLabel(app).toString()
+            // 1. Check exact match
             if (label.equals(appName, ignoreCase = true)) {
                 val intent = pm.getLaunchIntentForPackage(app.packageName)
                 if (intent != null) {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     startActivity(intent)
-                    return true
+                    return label
+                }
+            }
+            // 2. Check partial match (contains or startsWith)
+            if (label.contains(appName, ignoreCase = true)) {
+                if (bestMatch == null) {
+                    val intent = pm.getLaunchIntentForPackage(app.packageName)
+                    if (intent != null) {
+                        bestMatch = app
+                        bestMatchLabel = label
+                    }
                 }
             }
         }
-        return false
+
+        if (bestMatch != null) {
+            val intent = pm.getLaunchIntentForPackage(bestMatch.packageName)
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                return bestMatchLabel
+            }
+        }
+
+        return null
     }
 
-    private fun getPhoneNumberByName(name: String): String? {
-        var phoneNumber: String? = null
+    private fun getPhoneNumberByName(name: String): Pair<String, String>? {
+        var resultInfo: Pair<String, String>? = null
         val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
         val projection = arrayOf(
             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
             ContactsContract.CommonDataKinds.Phone.NUMBER
         )
 
-        val selection = "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ?"
-        val selectionArgs = arrayOf("%$name%")
-
-        val cursor = contentResolver.query(uri, projection, selection, selectionArgs, null)
+        val cursor = contentResolver.query(uri, projection, null, null, null)
 
         if (cursor != null) {
-            if (cursor.moveToFirst()) {
-                val numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                if (numberIndex != -1) {
-                    phoneNumber = cursor.getString(numberIndex)
+            val nameIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+            val numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+
+            while (cursor.moveToNext()) {
+                val contactName = cursor.getString(nameIndex)
+                val contactNumber = cursor.getString(numberIndex)
+
+                if (contactName != null && contactName.contains(name, ignoreCase = true)) {
+                    resultInfo = Pair(contactName, contactNumber)
+                    break // Take the first match
                 }
             }
             cursor.close()
         }
-        return phoneNumber
+        return resultInfo
     }
 
     private fun makeCall(phoneNumber: String) {

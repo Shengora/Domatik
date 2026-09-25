@@ -1,73 +1,126 @@
 class CommandParser {
-  // Returns a Map representing {"action": "...", "params": {...}}
-  static Map<String, dynamic> parse(String text) {
-    text = text.toLowerCase().trim();
+  static final Map<String, List<String>> _openAppSynonyms = {
+    'uz': ['och', 'kir', 'ochib ber', 'ochib yubor', 'kirsam', 'yoq'],
+    'ru': ['открой', 'запусти', 'войди в', 'включи'],
+    'en': ['open', 'start', 'launch', 'run'],
+  };
 
-    // 0. To'xtatish buyrug'i
-    final stopRegex = RegExp(r"^(?:to'xta|yetadi|stop|стоп|хватит)$");
-    if (stopRegex.hasMatch(text)) {
-      return {"action": "stop_swipe", "params": {}};
+  static final Map<String, List<String>> _callSynonyms = {
+    'uz': ['telefon qil', 'qo\'ng\'iroq qil', 'qongiroq qil', 'telefon qilib yubor', 'chaqir', 'ter', 'telefon qiling', 'qo\'ng\'iroq qiling'],
+    'ru': ['позвони', 'набери', 'вызови', 'звонок'],
+    'en': ['call', 'dial', 'phone'],
+  };
+
+  static final Map<String, List<String>> _swipeSynonyms = {
+    'uz': ['tepaga', 'pastga', 'o\'tka', 'sur', 'o\'tkaz', 'skrol qil'],
+    'ru': ['вверх', 'вниз', 'свайп', 'пролистай', 'прокрути'],
+    'en': ['up', 'down', 'swipe', 'scroll'],
+  };
+
+  static final Map<String, List<String>> _stopSwipeSynonyms = {
+    'uz': ['to\'xtat', 'to\'xta', 'bas'],
+    'ru': ['стоп', 'хватит', 'останови'],
+    'en': ['stop', 'halt', 'pause'],
+  };
+
+  static final List<String> _fillerWords = [
+    'iltimos', 'endi', 'keyin', 'qani', 'qilib', 'yubor', 'chiq', 'qil', 'ber', 'sot', 'sotib', 'ol'
+  ];
+
+  static Map<String, dynamic> parse(String text, String localeCode) {
+    String lowerText = text.toLowerCase().trim();
+
+    // Remove filler words safely (only if they are standalone words)
+    for (String filler in _fillerWords) {
+      lowerText = lowerText.replaceAll(RegExp(r'\b' + filler + r'\b'), '').trim();
     }
 
-    // 1. Ilova ochish (App open)
-    final openRegexUz = RegExp(r'^(.+?)\s+och(?:ib yubor)?$');
-    final openRegexEn = RegExp(r'^open\s+(.+)$');
-    final openRegexRu = RegExp(r'^(?:открой|открыть)\s+(.+)$');
+    // Normalize spaces
+    lowerText = lowerText.replaceAll(RegExp(r'\s+'), ' ');
 
-    if (openRegexUz.hasMatch(text)) {
-      final match = openRegexUz.firstMatch(text);
-      return {"action": "open_app", "params": {"appName": match?.group(1)?.trim()}};
-    } else if (openRegexEn.hasMatch(text)) {
-      final match = openRegexEn.firstMatch(text);
-      return {"action": "open_app", "params": {"appName": match?.group(1)?.trim()}};
-    } else if (openRegexRu.hasMatch(text)) {
-      final match = openRegexRu.firstMatch(text);
-      return {"action": "open_app", "params": {"appName": match?.group(1)?.trim()}};
+    // 1. Check for "Stop Swipe"
+    if (_matchesIntent(lowerText, _stopSwipeSynonyms[localeCode] ?? [])) {
+      return {'action': 'stop_swipe', 'params': {}};
     }
 
-    // 2. Qo'ng'iroq qilish (Call)
-    final callRegexUz = RegExp(r"^(.+?)ga\s+(?:qo'ng'iroq|telefon)\s+qil$");
-    final callRegexEn = RegExp(r'^call\s+(.+)$');
-    final callRegexRu = RegExp(r'^позвони\s+(.+)$');
-
-    if (callRegexUz.hasMatch(text)) {
-      final match = callRegexUz.firstMatch(text);
-      return {"action": "call", "params": {"name": match?.group(1)?.trim()}};
-    } else if (callRegexEn.hasMatch(text)) {
-      final match = callRegexEn.firstMatch(text);
-      return {"action": "call", "params": {"name": match?.group(1)?.trim()}};
-    } else if (callRegexRu.hasMatch(text)) {
-      final match = callRegexRu.firstMatch(text);
-      return {"action": "call", "params": {"name": match?.group(1)?.trim()}};
+    // 2. Check for "Swipe"
+    if (_matchesIntent(lowerText, _swipeSynonyms[localeCode] ?? [])) {
+      String direction = 'up';
+      if (lowerText.contains('past') || lowerText.contains('вниз') || lowerText.contains('down')) {
+        direction = 'down';
+      }
+      return {'action': 'swipe', 'params': {'direction': direction, 'count': 1}};
     }
 
-    // 3. Swipe (pastga sur, tepaga sur) + takrorlash (masalan "10 ta sur" yoki "10 marta sur")
-    final swipeDownRegex = RegExp(r'^(?:pastga sur|keyingi|swipe up|свайп вниз|вниз)(?:\s+(\d+)\s*(?:ta|marta|раз|times)?)?$');
-    final swipeDownPrefixRegex = RegExp(r'^(\d+)\s*(?:ta|marta|раз|times)\s*(?:pastga sur|keyingi|swipe up|свайп вниз|вниз)$');
-
-    final swipeUpRegex = RegExp(r'^(?:tepaga sur|oldingisi|swipe down|свайп вверх|вверх)(?:\s+(\d+)\s*(?:ta|marta|раз|times)?)?$');
-    final swipeUpPrefixRegex = RegExp(r'^(\d+)\s*(?:ta|marta|раз|times)\s*(?:tepaga sur|oldingisi|swipe down|свайп вверх|вверх)$');
-
-    if (swipeDownRegex.hasMatch(text)) {
-      final match = swipeDownRegex.firstMatch(text);
-      int count = int.tryParse(match?.group(1) ?? '1') ?? 1;
-      return {"action": "swipe", "params": {"direction": "up", "count": count}};
-    } else if (swipeDownPrefixRegex.hasMatch(text)) {
-      final match = swipeDownPrefixRegex.firstMatch(text);
-      int count = int.tryParse(match?.group(1) ?? '1') ?? 1;
-      return {"action": "swipe", "params": {"direction": "up", "count": count}};
+    // 3. Check for "Call"
+    String? callKeyword = _findKeyword(lowerText, _callSynonyms[localeCode] ?? []);
+    if (callKeyword != null) {
+      String target = lowerText.replaceAll(callKeyword, '').trim();
+      target = _cleanTargetName(target, localeCode);
+      if (target.isNotEmpty) {
+        return {'action': 'call', 'params': {'name': target}};
+      }
     }
 
-    if (swipeUpRegex.hasMatch(text)) {
-      final match = swipeUpRegex.firstMatch(text);
-      int count = int.tryParse(match?.group(1) ?? '1') ?? 1;
-      return {"action": "swipe", "params": {"direction": "down", "count": count}};
-    } else if (swipeUpPrefixRegex.hasMatch(text)) {
-      final match = swipeUpPrefixRegex.firstMatch(text);
-      int count = int.tryParse(match?.group(1) ?? '1') ?? 1;
-      return {"action": "swipe", "params": {"direction": "down", "count": count}};
+    // 4. Check for "Open App"
+    String? openKeyword = _findKeyword(lowerText, _openAppSynonyms[localeCode] ?? []);
+    if (openKeyword != null) {
+      String target = lowerText.replaceAll(openKeyword, '').trim();
+      target = _cleanTargetName(target, localeCode);
+      if (target.isNotEmpty) {
+         return {'action': 'open_app', 'params': {'appName': target}};
+      }
     }
 
-    return {"action": "unknown", "params": {}};
+    // Fallback: Default to open app if it's just one word and we're not sure,
+    // or return unknown. Based on requirements, better to be strict and return unknown.
+    return {'action': 'unknown', 'params': {}};
+  }
+
+  static bool _matchesIntent(String text, List<String> synonyms) {
+    for (String synonym in synonyms) {
+      if (text.contains(synonym)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static String? _findKeyword(String text, List<String> synonyms) {
+    for (String synonym in synonyms) {
+      if (text.contains(synonym)) {
+        return synonym;
+      }
+    }
+    return null;
+  }
+
+  static String _cleanTargetName(String name, String localeCode) {
+    if (name.isEmpty) return name;
+
+    String cleaned = name.trim();
+
+    if (localeCode == 'uz') {
+      // Remove Uzbek grammatical suffixes (accusative, dative, locative, ablative)
+      // using regex to match them at the end of the word.
+      // E.g., Dilshodga -> Dilshod, Telegramni -> Telegram, Chrome'ni -> Chrome, Whatsapp'ga -> Whatsapp
+
+      cleaned = cleaned.replaceAll(RegExp(r"['`]?([nN]i|[gG]a|[dD]an|[dD]a|[qQ]a|[kK]a|[nN]ing)$"), "");
+
+      // Secondary pass if there are multiple words (e.g. "Dilshod Aliyevga")
+      List<String> words = cleaned.split(' ');
+      if (words.isNotEmpty) {
+        words[words.length - 1] = words[words.length - 1].replaceAll(RegExp(r"['`]?([nN]i|[gG]a|[dD]an|[dD]a|[qQ]a|[kK]a|[nN]ing)$"), "");
+        cleaned = words.join(' ');
+      }
+    } else if (localeCode == 'ru') {
+       // Russian morphological endings are harder with simple regex, but we can do basic trimming
+       // like "в Telegram" -> "Telegram" or "позвони Алексею" -> "Алексею" (Contact search will use partial match anyway).
+       cleaned = cleaned.replaceAll(RegExp(r"^(в|на|к)\s+"), "");
+    }
+
+    // Capitalize first letter of each word to help with contact/app searching
+    // (though Kotlin native side will also use ignoreCase)
+    return cleaned;
   }
 }

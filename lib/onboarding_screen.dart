@@ -98,7 +98,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    final allGranted = _micGranted && _contactsGranted && _phoneGranted && _accessibilityGranted;
+    // Consider accessibility as granted if it's explicitly enabled or we just allow bypass (user request)
+    final coreGranted = _micGranted && _contactsGranted && _phoneGranted;
+    final allGranted = coreGranted && _accessibilityGranted;
 
     return Scaffold(
       appBar: AppBar(
@@ -143,9 +145,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: allGranted
+                onPressed: coreGranted
                     ? () async {
-                        debugPrint("OnboardingScreen: Continue button pressed. allGranted is true.");
+                        debugPrint("OnboardingScreen: Continue button pressed. Core permissions are true. Accessibility: $_accessibilityGranted");
                         try {
                           final prefs = await SharedPreferences.getInstance();
                           await prefs.setBool('onboarding_completed', true);
@@ -160,9 +162,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           }
                         }
                       }
-                    : () {
-                        debugPrint("OnboardingScreen: Continue button disabled. Permissions -> Mic: $_micGranted, Contacts: $_contactsGranted, Phone: $_phoneGranted, Accessibility: $_accessibilityGranted");
-                      },
+                    : null,
                 child: Text(l10n.continueButton),
               ),
             ),
