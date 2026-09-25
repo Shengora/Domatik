@@ -81,7 +81,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   static const platform = MethodChannel('com.example.voiceassistant/channel');
   late stt.SpeechToText _speech;
   bool _isListening = false;
@@ -102,24 +102,44 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
-
-    // Start Foreground Service to keep app alive in background
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startForegroundService();
-    });
+    WidgetsBinding.instance.addObserver(this);
   }
 
-  void _startForegroundService() async {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      _startForegroundIfNeeded();
+    } else if (state == AppLifecycleState.resumed) {
+      _stopForegroundService();
+    }
+  }
+
+  void _startForegroundIfNeeded() async {
     try {
       final l10n = AppLocalizations.of(context);
       final text = l10n?.foregroundServiceRunning ?? "Voice Assistant is running";
-      await platform.invokeMethod('startForegroundService', {
+      await platform.invokeMethod('startForegroundIfNeeded', {
         'title': l10n?.appTitle ?? 'Voice Assistant',
         'text': text,
       });
-      debugPrint("Foreground service started successfully.");
+      debugPrint("Checked if Foreground service is needed.");
     } on PlatformException catch (e) {
-      debugPrint("Failed to start foreground service: '${e.message}'.");
+      debugPrint("Failed to start foreground service conditionally: '${e.message}'.");
+    }
+  }
+
+  void _stopForegroundService() async {
+    try {
+      await platform.invokeMethod('stopForegroundService');
+      debugPrint("Foreground service stopped (App resumed).");
+    } on PlatformException catch (e) {
+      debugPrint("Failed to stop foreground service: '${e.message}'.");
     }
   }
 

@@ -33,16 +33,22 @@ class MainActivity : FlutterActivity() {
                     Log.d("VoiceAssistant", "isAccessibilityEnabled check ended, took ${System.currentTimeMillis() - start}ms, result: $isEnabled")
                     result.success(isEnabled)
                 }
-                "startForegroundService" -> {
+                "startForegroundIfNeeded" -> {
                     val title = call.argument<String>("title") ?: "Voice Assistant"
                     val text = call.argument<String>("text") ?: "Running in background"
 
-                    val serviceIntent = Intent(this, ForegroundService::class.java).apply {
-                        putExtra("title", title)
-                        putExtra("text", text)
+                    if (VoiceAccessibilityService.instance?.isSwipingActive() == true) {
+                        Log.d("VoiceAssistant", "Swipe is active, starting ForegroundService")
+                        val serviceIntent = Intent(this, ForegroundService::class.java).apply {
+                            putExtra("title", title)
+                            putExtra("text", text)
+                        }
+                        ContextCompat.startForegroundService(this, serviceIntent)
+                        result.success(true)
+                    } else {
+                        Log.d("VoiceAssistant", "Swipe is not active, skipping ForegroundService")
+                        result.success(false)
                     }
-                    ContextCompat.startForegroundService(this, serviceIntent)
-                    result.success(true)
                 }
                 "stopForegroundService" -> {
                     val serviceIntent = Intent(this, ForegroundService::class.java)
