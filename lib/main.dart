@@ -241,6 +241,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           listenFor: const Duration(seconds: 15),
           pauseFor: const Duration(seconds: 3),
           localeId: _localeId,
+          onDevice: true, // Prefer offline speech recognition
         );
       } else {
          _addToHistory("Xatolik", "Mikrofonga ulanib bo'lmadi yoki ruxsat yo'q.");
@@ -351,12 +352,20 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             ],
           ),
           PopupMenuButton<String>(
-            onSelected: (value) {
-              setState(() {
-                _localeId = value;
-                String langCode = value.split('_')[0];
-                MyApp.setLocale(context, Locale(langCode));
-              });
+            onSelected: (value) async {
+              if (value == 'offline_settings') {
+                try {
+                  await platform.invokeMethod('openVoiceSettings');
+                } on PlatformException catch (e) {
+                  debugPrint("Failed to open voice settings: '${e.message}'.");
+                }
+              } else {
+                setState(() {
+                  _localeId = value;
+                  String langCode = value.split('_')[0];
+                  MyApp.setLocale(context, Locale(langCode));
+                });
+              }
             },
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
               const PopupMenuItem<String>(
@@ -370,6 +379,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               const PopupMenuItem<String>(
                 value: 'en_US',
                 child: Text('English'),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem<String>(
+                value: 'offline_settings',
+                child: Text(AppLocalizations.of(context)!.offlineSettingsButton),
               ),
             ],
           ),

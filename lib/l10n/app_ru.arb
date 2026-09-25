@@ -17,5 +17,7 @@
   "notUnderstood": "Я не понял",
   "listening": "Слушаю...",
   "statusReady": "Готов",
-  "foregroundServiceRunning": "Голосовой Помощник работает"
+  "foregroundServiceRunning": "Голосовой Помощник работает",
+  "offlineRecommendation": "Для более быстрого и надежного распознавания без интернета, загрузите оффлайн пакет речи в настройках устройства.",
+  "offlineSettingsButton": "Оффлайн Пакет Речи"
 }

@@ -112,6 +112,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+  Future<void> _openVoiceSettings() async {
+    try {
+      await platform.invokeMethod('openVoiceSettings');
+    } on PlatformException catch (e) {
+      debugPrint("Failed to open voice settings: '${e.message}'.");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -165,6 +173,31 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               buttonText: l10n.openSettings,
             ),
             const Spacer(),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.offlineRecommendation,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _openVoiceSettings,
+                      child: Text(l10n.offlineSettingsButton),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               height: 50,

@@ -64,4 +64,11 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get foregroundServiceRunning => 'Ovozli yordamchi ishlamoqda';
+
+  @override
+  String get offlineRecommendation =>
+      'Yaxshiroq va tezroq ishlashi (hamda internet talab qilmasligi) uchun telefon sozlamalaridan offline nutq paketini yuklab oling.';
+
+  @override
+  String get offlineSettingsButton => 'Offline Nutq Sozlamalari';
 }

@@ -64,4 +64,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get foregroundServiceRunning => 'Voice Assistant is running';
+
+  @override
+  String get offlineRecommendation =>
+      'For faster and more reliable recognition without the internet, please download an offline speech package from your device settings.';
+
+  @override
+  String get offlineSettingsButton => 'Offline Speech Settings';
 }

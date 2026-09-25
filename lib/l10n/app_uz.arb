@@ -24,5 +24,7 @@
   "notUnderstood": "Tushunmadim",
   "listening": "Eshitmoqhaman...",
   "statusReady": "Tayyor",
-  "foregroundServiceRunning": "Ovozli yordamchi ishlamoqda"
+  "foregroundServiceRunning": "Ovozli yordamchi ishlamoqda",
+  "offlineRecommendation": "Yaxshiroq va tezroq ishlashi (hamda internet talab qilmasligi) uchun telefon sozlamalaridan offline nutq paketini yuklab oling.",
+  "offlineSettingsButton": "Offline Nutq Sozlamalari"
 }

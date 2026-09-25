@@ -207,6 +207,18 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Ovozli yordamchi ishlamoqda'**
   String get foregroundServiceRunning;
+
+  /// No description provided for @offlineRecommendation.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yaxshiroq va tezroq ishlashi (hamda internet talab qilmasligi) uchun telefon sozlamalaridan offline nutq paketini yuklab oling.'**
+  String get offlineRecommendation;
+
+  /// No description provided for @offlineSettingsButton.
+  ///
+  /// In uz, this message translates to:
+  /// **'Offline Nutq Sozlamalari'**
+  String get offlineSettingsButton;
 }
 
 class _AppLocalizationsDelegate

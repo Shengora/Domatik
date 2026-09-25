@@ -17,5 +17,7 @@
   "notUnderstood": "I didn't understand",
   "listening": "Listening...",
   "statusReady": "Ready",
-  "foregroundServiceRunning": "Voice Assistant is running"
+  "foregroundServiceRunning": "Voice Assistant is running",
+  "offlineRecommendation": "For faster and more reliable recognition without the internet, please download an offline speech package from your device settings.",
+  "offlineSettingsButton": "Offline Speech Settings"
 }

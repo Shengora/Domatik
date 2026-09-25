@@ -28,6 +28,21 @@ class MainActivity : FlutterActivity() {
                     startActivity(intent)
                     result.success(true)
                 }
+                "openVoiceSettings" -> {
+                    try {
+                        val intent = Intent(android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS)
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        try {
+                            val intent = Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS)
+                            startActivity(intent)
+                        } catch (e2: Exception) {
+                            val intent = Intent(android.provider.Settings.ACTION_SETTINGS)
+                            startActivity(intent)
+                        }
+                    }
+                    result.success(true)
+                }
                 "isAccessibilityEnabled" -> {
                     val start = System.currentTimeMillis()
                     Log.d("VoiceAssistant", "isAccessibilityEnabled check started")

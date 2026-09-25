@@ -64,4 +64,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get foregroundServiceRunning => 'Голосовой Помощник работает';
+
+  @override
+  String get offlineRecommendation =>
+      'Для более быстрого и надежного распознавания без интернета, загрузите оффлайн пакет речи в настройках устройства.';
+
+  @override
+  String get offlineSettingsButton => 'Оффлайн Пакет Речи';
 }
