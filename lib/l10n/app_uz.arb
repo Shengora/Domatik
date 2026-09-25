@@ -22,5 +22,6 @@
   "no": "Yo'q",
   "notUnderstood": "Tushunmadim",
   "listening": "Eshitmoqhaman...",
-  "statusReady": "Tayyor"
+  "statusReady": "Tayyor",
+  "foregroundServiceRunning": "Ovozli yordamchi ishlamoqda"
 }

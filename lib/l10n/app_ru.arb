@@ -15,5 +15,6 @@
   "no": "Нет",
   "notUnderstood": "Я не понял",
   "listening": "Слушаю...",
-  "statusReady": "Готов"
+  "statusReady": "Готов",
+  "foregroundServiceRunning": "Голосовой Помощник работает"
 }

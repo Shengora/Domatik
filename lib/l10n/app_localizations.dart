@@ -195,6 +195,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Tayyor'**
   String get statusReady;
+
+  /// No description provided for @foregroundServiceRunning.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ovozli yordamchi ishlamoqda'**
+  String get foregroundServiceRunning;
 }
 
 class _AppLocalizationsDelegate

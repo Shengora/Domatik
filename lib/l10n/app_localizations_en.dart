@@ -58,4 +58,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusReady => 'Ready';
+
+  @override
+  String get foregroundServiceRunning => 'Voice Assistant is running';
 }

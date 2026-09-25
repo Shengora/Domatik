@@ -15,5 +15,6 @@
   "no": "No",
   "notUnderstood": "I didn't understand",
   "listening": "Listening...",
-  "statusReady": "Ready"
+  "statusReady": "Ready",
+  "foregroundServiceRunning": "Voice Assistant is running"
 }

@@ -58,4 +58,7 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get statusReady => 'Tayyor';
+
+  @override
+  String get foregroundServiceRunning => 'Ovozli yordamchi ishlamoqda';
 }

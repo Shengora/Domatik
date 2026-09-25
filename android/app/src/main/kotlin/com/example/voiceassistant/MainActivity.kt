@@ -10,6 +10,8 @@ import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import android.util.Log
+import androidx.core.content.ContextCompat
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.voiceassistant/channel"
@@ -25,7 +27,27 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
                 "isAccessibilityEnabled" -> {
-                    result.success(isAccessibilityServiceEnabled())
+                    val start = System.currentTimeMillis()
+                    Log.d("VoiceAssistant", "isAccessibilityEnabled check started")
+                    val isEnabled = isAccessibilityServiceEnabled()
+                    Log.d("VoiceAssistant", "isAccessibilityEnabled check ended, took ${System.currentTimeMillis() - start}ms, result: $isEnabled")
+                    result.success(isEnabled)
+                }
+                "startForegroundService" -> {
+                    val title = call.argument<String>("title") ?: "Voice Assistant"
+                    val text = call.argument<String>("text") ?: "Running in background"
+
+                    val serviceIntent = Intent(this, ForegroundService::class.java).apply {
+                        putExtra("title", title)
+                        putExtra("text", text)
+                    }
+                    ContextCompat.startForegroundService(this, serviceIntent)
+                    result.success(true)
+                }
+                "stopForegroundService" -> {
+                    val serviceIntent = Intent(this, ForegroundService::class.java)
+                    stopService(serviceIntent)
+                    result.success(true)
                 }
                 "executeCommand" -> {
                     val command = call.arguments as Map<String, Any>

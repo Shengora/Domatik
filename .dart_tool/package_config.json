@@ -165,15 +165,15 @@
     },
     {
       "name": "permission_handler",
-      "rootUri": "file:///home/jules/.pub-cache/hosted/pub.dev/permission_handler-13.0.2",
+      "rootUri": "file:///home/jules/.pub-cache/hosted/pub.dev/permission_handler-11.3.1",
       "packageUri": "lib/",
-      "languageVersion": "3.6"
+      "languageVersion": "2.15"
     },
     {
       "name": "permission_handler_android",
-      "rootUri": "file:///home/jules/.pub-cache/hosted/pub.dev/permission_handler_android-14.1.0",
+      "rootUri": "file:///home/jules/.pub-cache/hosted/pub.dev/permission_handler_android-12.1.0",
       "packageUri": "lib/",
-      "languageVersion": "3.6"
+      "languageVersion": "3.5"
     },
     {
       "name": "permission_handler_apple",

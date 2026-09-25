@@ -83,6 +83,25 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _speech = stt.SpeechToText();
+
+    // Start Foreground Service to keep app alive in background
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startForegroundService();
+    });
+  }
+
+  void _startForegroundService() async {
+    try {
+      final l10n = AppLocalizations.of(context);
+      final text = l10n?.foregroundServiceRunning ?? "Voice Assistant is running";
+      await platform.invokeMethod('startForegroundService', {
+        'title': l10n?.appTitle ?? 'Voice Assistant',
+        'text': text,
+      });
+      debugPrint("Foreground service started successfully.");
+    } on PlatformException catch (e) {
+      debugPrint("Failed to start foreground service: '${e.message}'.");
+    }
   }
 
   void _listen() async {

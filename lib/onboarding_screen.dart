@@ -34,10 +34,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     bool accessibilityStatus = false;
     try {
-      final bool result = await platform.invokeMethod('isAccessibilityEnabled');
-      accessibilityStatus = result;
+      debugPrint("OnboardingScreen: Calling isAccessibilityEnabled native method...");
+      final startTime = DateTime.now();
+
+      final bool? result = await platform.invokeMethod<bool>('isAccessibilityEnabled').timeout(
+        const Duration(seconds: 3),
+        onTimeout: () {
+          debugPrint("OnboardingScreen: isAccessibilityEnabled timed out after 3 seconds.");
+          return false;
+        },
+      );
+
+      final endTime = DateTime.now();
+      debugPrint("OnboardingScreen: isAccessibilityEnabled returned $result, took ${endTime.difference(startTime).inMilliseconds} ms.");
+
+      accessibilityStatus = result ?? false;
     } on PlatformException catch (e) {
       debugPrint("Failed to check accessibility: '${e.message}'.");
+    } catch (e) {
+      debugPrint("Unexpected error during accessibility check: $e");
     }
 
     setState(() {
@@ -46,6 +61,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _phoneGranted = phoneStatus.isGranted;
       _accessibilityGranted = accessibilityStatus;
     });
+
+    debugPrint("OnboardingScreen Permissions -> Mic: $_micGranted, Contacts: $_contactsGranted, Phone: $_phoneGranted, Accessibility: $_accessibilityGranted");
   }
 
   Future<void> _requestMicrophone() async {
@@ -128,11 +145,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: ElevatedButton(
                 onPressed: allGranted
                     ? () async {
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setBool('onboarding_completed', true);
-                        widget.onComplete();
+                        debugPrint("OnboardingScreen: Continue button pressed. allGranted is true.");
+                        try {
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('onboarding_completed', true);
+                          debugPrint("OnboardingScreen: Saved onboarding_completed = true. Calling widget.onComplete()...");
+                          widget.onComplete();
+                        } catch (e) {
+                          debugPrint("OnboardingScreen: Error while saving prefs or calling onComplete: $e");
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Xatolik: $e")),
+                            );
+                          }
+                        }
                       }
-                    : null,
+                    : () {
+                        debugPrint("OnboardingScreen: Continue button disabled. Permissions -> Mic: $_micGranted, Contacts: $_contactsGranted, Phone: $_phoneGranted, Accessibility: $_accessibilityGranted");
+                      },
                 child: Text(l10n.continueButton),
               ),
             ),

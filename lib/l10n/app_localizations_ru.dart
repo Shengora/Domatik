@@ -58,4 +58,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get statusReady => 'Готов';
+
+  @override
+  String get foregroundServiceRunning => 'Голосовой Помощник работает';
 }
