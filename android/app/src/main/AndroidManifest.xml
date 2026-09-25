@@ -59,6 +59,10 @@
                       android:value="Running background tasks for voice commands"/>
         </service>
 
+        <service
+            android:name=".OverlayService"
+            android:exported="false" />
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

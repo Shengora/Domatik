@@ -139,9 +139,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         debugPrint("Overlay service started");
       } else {
         debugPrint("Missing overlay permissions.");
+        // Try to request permission natively via the settings intent
+        try {
+          await platform.invokeMethod('requestOverlayPermission');
+        } catch (_) {}
+
         if (mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(content: Text("Boshqa ilovalar ustida chizish ruxsati kerak.")),
+             const SnackBar(content: Text("Ruxsat berilgach, tugmani qayta yoqing.")),
            );
            setState(() {
              _isOverlayEnabled = false;
@@ -152,6 +157,11 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       }
     } on PlatformException catch (e) {
       debugPrint("Failed to start overlay: '${e.message}'.");
+      if (mounted) {
+         setState(() {
+           _isOverlayEnabled = false;
+         });
+      }
     }
   }
 
@@ -204,7 +214,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   Map<String, dynamic>? _pendingAction;
 
-  void _listen() async {
+  void _listen({bool forceOnline = false}) async {
     if (!_isListening) {
       bool available = await _speech.initialize(
         onStatus: (status) {
@@ -221,6 +231,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         onError: (errorNotification) {
           debugPrint('SpeechToText Error: $errorNotification');
           setState(() => _isListening = false);
+
+          if (errorNotification.errorMsg.contains('error_language_not_supported') || errorNotification.errorMsg.contains('language_not_supported')) {
+             if (!forceOnline) {
+                // Auto fallback to online recognition
+                debugPrint('Falling back to online recognition due to offline package missing.');
+                _addToHistory("Xabar", "Offline paket topilmadi, online rejimda ishlamoqda...");
+                _listen(forceOnline: true);
+                return;
+             }
+          }
           _addToHistory("Xatolik", "Mikrofon xatosi: ${errorNotification.errorMsg}");
         },
       );
@@ -243,7 +263,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           listenFor: const Duration(seconds: 15),
           pauseFor: const Duration(seconds: 3),
           localeId: _localeId,
-          onDevice: true, // Prefer offline speech recognition
+          onDevice: !forceOnline, // Use onDevice only if not forced online
         );
       } else {
          _addToHistory("Xatolik", "Mikrofonga ulanib bo'lmadi yoki ruxsat yo'q.");

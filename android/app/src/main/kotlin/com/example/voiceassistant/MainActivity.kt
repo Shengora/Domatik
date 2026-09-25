@@ -96,9 +96,14 @@ class MainActivity : FlutterActivity() {
                 }
                 "startOverlayService" -> {
                     if (android.provider.Settings.canDrawOverlays(this)) {
-                        val intent = Intent(this, OverlayService::class.java)
-                        startService(intent)
-                        result.success(true)
+                        try {
+                            val intent = Intent(this, OverlayService::class.java)
+                            startService(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            Log.e("VoiceAssistant", "Failed to start OverlayService", e)
+                            result.error("SERVICE_ERROR", e.message, null)
+                        }
                     } else {
                         result.success(false)
                     }

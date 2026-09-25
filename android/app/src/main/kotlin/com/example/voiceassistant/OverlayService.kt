@@ -120,6 +120,8 @@ class OverlayService : Service() {
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.example.voiceassistant/overlay_channel")
     }
 
+    private var forceOnline = false
+
     private fun setupSpeechRecognizer() {
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
         speechRecognizer.setRecognitionListener(object : RecognitionListener {
@@ -133,10 +135,18 @@ class OverlayService : Service() {
                 updateStatus("Processing...")
             }
             override fun onError(error: Int) {
+                if ((error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED || error == SpeechRecognizer.ERROR_SERVER_DISCONNECTED) && !forceOnline) {
+                    forceOnline = true
+                    updateStatus("Falling back to online...")
+                    startListening() // Restart without offline requirement
+                    return
+                }
+
                 updateStatus("Error: $error")
                 isListening = false
                 resetIcon()
                 hideStatusDelayed()
+                forceOnline = false // Reset for next time
             }
             override fun onResults(results: Bundle?) {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
@@ -147,6 +157,7 @@ class OverlayService : Service() {
                 }
                 isListening = false
                 resetIcon()
+                forceOnline = false // Reset for next time
             }
             override fun onPartialResults(partialResults: Bundle?) {}
             override fun onEvent(eventType: Int, params: Bundle?) {}
@@ -345,8 +356,8 @@ class OverlayService : Service() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
 
-            // Prefer offline recognition if available
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Prefer offline recognition if available and not forced online
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !forceOnline) {
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             }
         }
