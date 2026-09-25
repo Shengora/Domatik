@@ -10,12 +10,16 @@ import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import android.util.Log
+import androidx.core.content.ContextCompat
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.voiceassistant/channel"
+    private lateinit var nativeCommandsHelper: NativeCommandsHelper
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        nativeCommandsHelper = NativeCommandsHelper(this)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -24,8 +28,90 @@ class MainActivity : FlutterActivity() {
                     startActivity(intent)
                     result.success(true)
                 }
+                "canWriteSettings" -> {
+                    result.success(android.provider.Settings.System.canWrite(this))
+                }
+                "requestWriteSettingsPermission" -> {
+                    val intent = Intent(
+                        android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                        android.net.Uri.parse("package:$packageName")
+                    )
+                    startActivity(intent)
+                    result.success(true)
+                }
+                "openVoiceSettings" -> {
+                    try {
+                        val intent = Intent(android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS)
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        try {
+                            val intent = Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS)
+                            startActivity(intent)
+                        } catch (e2: Exception) {
+                            val intent = Intent(android.provider.Settings.ACTION_SETTINGS)
+                            startActivity(intent)
+                        }
+                    }
+                    result.success(true)
+                }
                 "isAccessibilityEnabled" -> {
-                    result.success(isAccessibilityServiceEnabled())
+                    val start = System.currentTimeMillis()
+                    Log.d("VoiceAssistant", "isAccessibilityEnabled check started")
+                    val isEnabled = isAccessibilityServiceEnabled()
+                    Log.d("VoiceAssistant", "isAccessibilityEnabled check ended, took ${System.currentTimeMillis() - start}ms, result: $isEnabled")
+                    result.success(isEnabled)
+                }
+                "startForegroundIfNeeded" -> {
+                    val title = call.argument<String>("title") ?: "Voice Assistant"
+                    val text = call.argument<String>("text") ?: "Running in background"
+
+                    if (VoiceAccessibilityService.instance?.isSwipingActive() == true) {
+                        Log.d("VoiceAssistant", "Swipe is active, starting ForegroundService")
+                        val serviceIntent = Intent(this, ForegroundService::class.java).apply {
+                            putExtra("title", title)
+                            putExtra("text", text)
+                        }
+                        ContextCompat.startForegroundService(this, serviceIntent)
+                        result.success(true)
+                    } else {
+                        Log.d("VoiceAssistant", "Swipe is not active, skipping ForegroundService")
+                        result.success(false)
+                    }
+                }
+                "stopForegroundService" -> {
+                    val serviceIntent = Intent(this, ForegroundService::class.java)
+                    stopService(serviceIntent)
+                    result.success(true)
+                }
+                "canDrawOverlays" -> {
+                    result.success(android.provider.Settings.canDrawOverlays(this))
+                }
+                "requestOverlayPermission" -> {
+                    val intent = Intent(
+                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        android.net.Uri.parse("package:$packageName")
+                    )
+                    startActivity(intent)
+                    result.success(true)
+                }
+                "startOverlayService" -> {
+                    if (android.provider.Settings.canDrawOverlays(this)) {
+                        try {
+                            val intent = Intent(this, OverlayService::class.java)
+                            startService(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            Log.e("VoiceAssistant", "Failed to start OverlayService", e)
+                            result.error("SERVICE_ERROR", e.message, null)
+                        }
+                    } else {
+                        result.success(false)
+                    }
+                }
+                "stopOverlayService" -> {
+                    val intent = Intent(this, OverlayService::class.java)
+                    stopService(intent)
+                    result.success(true)
                 }
                 "executeCommand" -> {
                     val command = call.arguments as Map<String, Any>
@@ -46,9 +132,9 @@ class MainActivity : FlutterActivity() {
             "open_app" -> {
                 val appName = params["appName"] as? String
                 if (appName != null) {
-                    val opened = openAppByName(appName)
-                    if (opened) {
-                        result.success(true)
+                    val matchedApp = nativeCommandsHelper.openAppByName(appName)
+                    if (matchedApp != null) {
+                        result.success(mapOf("matchedApp" to matchedApp))
                     } else {
                         result.error("APP_NOT_FOUND", "Could not find app with name: $appName", null)
                     }
@@ -59,10 +145,10 @@ class MainActivity : FlutterActivity() {
             "call" -> {
                 val name = params["name"] as? String
                 if (name != null) {
-                    val phone = getPhoneNumberByName(name)
-                    if (phone != null) {
-                        makeCall(phone)
-                        result.success(true)
+                    val contactInfo = nativeCommandsHelper.getPhoneNumberByName(name)
+                    if (contactInfo != null) {
+                        nativeCommandsHelper.makeCall(contactInfo.second)
+                        result.success(mapOf("matchedName" to contactInfo.first))
                     } else {
                         result.error("CONTACT_NOT_FOUND", "Could not find contact: $name", null)
                     }
@@ -89,59 +175,68 @@ class MainActivity : FlutterActivity() {
                     result.error("SERVICE_NOT_RUNNING", "Accessibility Service is not running", null)
                 }
             }
+            "sms" -> {
+                val name = params["name"] as? String
+                val message = params["message"] as? String
+                if (name != null && message != null) {
+                    val contactInfo = nativeCommandsHelper.getPhoneNumberByName(name)
+                    if (contactInfo != null) {
+                        nativeCommandsHelper.sendSms(contactInfo.second, message)
+                        result.success(mapOf("matchedName" to contactInfo.first))
+                    } else {
+                        result.error("CONTACT_NOT_FOUND", "Could not find contact: $name", null)
+                    }
+                } else {
+                    result.error("INVALID_ARGS", "Contact name and message are required", null)
+                }
+            }
+            "control_wifi" -> {
+                nativeCommandsHelper.controlWifi()
+                result.success(true)
+            }
+            "control_bluetooth" -> {
+                val turnOn = params["turnOn"] as? Boolean ?: true
+                nativeCommandsHelper.controlBluetooth(turnOn)
+                result.success(true)
+            }
+            "control_flashlight" -> {
+                val turnOn = params["turnOn"] as? Boolean ?: true
+                nativeCommandsHelper.controlFlashlight(turnOn)
+                result.success(true)
+            }
+            "control_volume" -> {
+                val stream = params["stream"] as? String ?: "music"
+                val direction = params["direction"] as? String ?: "up"
+                val level = params["level"] as? Int
+                nativeCommandsHelper.controlVolume(stream, direction, level)
+                result.success(true)
+            }
+            "control_brightness" -> {
+                val direction = params["direction"] as? String ?: "up"
+                val level = params["level"] as? Int
+                nativeCommandsHelper.controlBrightness(direction, level)
+                result.success(true)
+            }
+            "set_alarm" -> {
+                val hour = params["hour"] as? Int ?: 7
+                val minute = params["minute"] as? Int ?: 0
+                nativeCommandsHelper.setAlarm(hour, minute)
+                result.success(true)
+            }
+            "set_timer" -> {
+                val minutes = params["minutes"] as? Int ?: 5
+                nativeCommandsHelper.setTimer(minutes)
+                result.success(true)
+            }
+            "web_search" -> {
+                val query = params["query"] as? String ?: ""
+                nativeCommandsHelper.webSearch(query)
+                result.success(true)
+            }
             else -> {
                 result.error("UNKNOWN_ACTION", "Action not supported", null)
             }
         }
-    }
-
-    private fun openAppByName(appName: String): Boolean {
-        val pm = packageManager
-        val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-
-        for (app in packages) {
-            val label = pm.getApplicationLabel(app).toString()
-            if (label.equals(appName, ignoreCase = true)) {
-                val intent = pm.getLaunchIntentForPackage(app.packageName)
-                if (intent != null) {
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    startActivity(intent)
-                    return true
-                }
-            }
-        }
-        return false
-    }
-
-    private fun getPhoneNumberByName(name: String): String? {
-        var phoneNumber: String? = null
-        val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
-        val projection = arrayOf(
-            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-            ContactsContract.CommonDataKinds.Phone.NUMBER
-        )
-
-        val selection = "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ?"
-        val selectionArgs = arrayOf("%$name%")
-
-        val cursor = contentResolver.query(uri, projection, selection, selectionArgs, null)
-
-        if (cursor != null) {
-            if (cursor.moveToFirst()) {
-                val numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                if (numberIndex != -1) {
-                    phoneNumber = cursor.getString(numberIndex)
-                }
-            }
-            cursor.close()
-        }
-        return phoneNumber
-    }
-
-    private fun makeCall(phoneNumber: String) {
-        val intent = Intent(Intent.ACTION_CALL)
-        intent.data = Uri.parse("tel:$phoneNumber")
-        startActivity(intent)
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {

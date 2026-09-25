@@ -1,29 +1,24 @@
-# Voice Assistant (Ovozli Yordamchi) MVP
+# Voice Assistant
 
-Bu dastur Flutter va Native Android (Kotlin) da yozilgan bo'lib, telefonni ovoz orqali boshqarish imkonini beradi.
+A Flutter application showcasing a voice assistant integrated with Android Native APIs (AccessibilityService & Foreground Service) for complex command execution.
 
-## Xususiyatlar
-- Mikrofon orqali ovozli buyruqlarni qabul qilish.
-- **Ilovalarni ochish**: "Telegram och", "open Chrome", "открой YouTube" va hk.
-- **Qo'ng'iroq qilish**: "Akmalga qo'ng'iroq qil" kabi buyruqlar va tasdiqlash dialogi.
-- **Surish (Swipe)**: Ekran bo'ylab tepaga yoki pastga surish ("pastga sur", "tepaga sur", "10 ta sur").
-- Uch xil tillarni qo'llab-quvvatlaydi (O'zbek, Rus, Ingliz) va u orqali lokalizatsiya qilingan (Flutter l10n).
-- Barcha ruxsatlarni Onboarding ekranida avtomatik so'raydi.
+## Background Execution & Battery Optimization
 
-## Ilovani ishga tushirish (Android)
-1. Flutter o'rnatilganligiga ishonch hosil qiling va telefoningiz kompyuterga ulangan bo'lishi kerak.
-2. Terminalda papkaga kirib quyidagi buyruqni bering:
-   ```bash
-   flutter pub get
-   flutter gen-l10n
-   flutter run
-   ```
+On Android devices, especially those from manufacturers with aggressive battery management (like Xiaomi, Samsung, Huawei, Oppo, Vivo), continuous background operations may be killed by the OS even if a Foreground Service is active.
 
-## Accessibility xizmatini yoqish (Maxsus imkoniyatlar)
-Ushbu ilova ovoz orqali ekranni surish (swipe) kabi funksiyalarni amalga oshirish uchun Android'ning "Accessibility" (Maxsus imkoniyatlar) xizmatidan foydalanadi.
+To ensure continuous uninterrupted voice command execution (e.g. "Swipe 100 times") when the app is minimized, the user may need to manually exempt the app from battery optimizations.
 
-1. Ilovani birinchi marta ochganingizda ruxsatlar oynasi chiqadi.
-2. **"Maxsus Imkoniyatlar" (Accessibility)** yonidagi **"Sozlamalarni ochish"** tugmasini bosing.
-3. Telefoningizning maxsus imkoniyatlar (Accessibility) menyusi ochiladi.
-4. Ro'yxatdan **"voice_assistant"** (yoki VoiceAssistant) degan joyni toping va uni faollashtiring (Yoqish / On).
-5. Ilovaga qayting, barcha ruxsatlar tekshirilib davom etishga ruxsat beriladi.
+### Xiaomi (MIUI)
+1. Go to **Settings > Apps > Manage Apps > Voice Assistant**.
+2. Turn on **Autostart**.
+3. Go to **Battery saver** and set it to **No restrictions**.
+
+### Samsung (One UI)
+1. Go to **Settings > Apps > Voice Assistant**.
+2. Tap on **Battery** and select **Unrestricted**.
+
+### Stock Android
+1. Go to **Settings > Apps > Voice Assistant**.
+2. Tap **App battery usage** and select **Unrestricted**.
+
+If these permissions are not granted, the Foreground Service may still be killed shortly after the screen turns off or the app is moved to the background.

@@ -28,6 +28,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get phonePermission => 'Телефон';
 
   @override
+  String get smsPermission => 'Отправка СМС';
+
+  @override
   String get accessibilityPermission => 'Спец. возможности (Accessibility)';
 
   @override
@@ -37,11 +40,23 @@ class AppLocalizationsRu extends AppLocalizations {
   String get grantPermission => 'Разрешить';
 
   @override
+  String get overlayPermission => 'Поверх других приложений';
+
+  @override
+  String get writeSettingsPermission =>
+      'Изменение системных настроек (Яркость)';
+
+  @override
   String get continueButton => 'Продолжить';
 
   @override
-  String callConfirmation(String name) {
-    return 'Позвонить $name?';
+  String callConfirmationVoice(String name) {
+    return 'Позвонить $name? (Да/Нет)';
+  }
+
+  @override
+  String smsConfirmationVoice(String name, String message) {
+    return 'Отправить \'$message\' контакту $name? (Да/Нет)';
   }
 
   @override
@@ -51,6 +66,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get no => 'Нет';
 
   @override
+  String get actionConfirmed => 'Выполняю.';
+
+  @override
+  String get actionCancelled => 'Отменено.';
+
+  @override
+  String get unknownTime => 'Не понял время, скажите \'разбуди в 7:30\'.';
+
+  @override
   String get notUnderstood => 'Я не понял';
 
   @override
@@ -58,4 +82,14 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get statusReady => 'Готов';
+
+  @override
+  String get foregroundServiceRunning => 'Голосовой Помощник работает';
+
+  @override
+  String get offlineRecommendation =>
+      'Для более быстрого и надежного распознавания без интернета, загрузите оффлайн пакет речи в настройках устройства.';
+
+  @override
+  String get offlineSettingsButton => 'Оффлайн Пакет Речи';
 }

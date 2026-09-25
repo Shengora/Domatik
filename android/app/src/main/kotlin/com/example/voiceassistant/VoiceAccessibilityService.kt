@@ -41,10 +41,18 @@ class VoiceAccessibilityService : AccessibilityService() {
         serviceScope.cancel()
     }
 
+    fun isSwipingActive(): Boolean {
+        return swipeJob?.isActive == true
+    }
+
     fun stopSwiping() {
         swipeJob?.cancel()
         swipeJob = null
         Log.d("VoiceAccessService", "Swiping stopped")
+
+        // Stop foreground service if it's running because job is done/cancelled
+        val intent = android.content.Intent(this, ForegroundService::class.java)
+        stopService(intent)
     }
 
     fun performSwipe(direction: String, count: Int = 1) {
@@ -90,6 +98,11 @@ class VoiceAccessibilityService : AccessibilityService() {
 
                 delay(700) // 700 ms pause between swipes
             }
+
+            // Loop finished, stop the service
+            Log.d("VoiceAccessService", "Swipe loop finished")
+            val intent = android.content.Intent(this@VoiceAccessibilityService, ForegroundService::class.java)
+            stopService(intent)
         }
     }
 }

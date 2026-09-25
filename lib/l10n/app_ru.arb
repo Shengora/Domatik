@@ -6,14 +6,41 @@
   "microphonePermission": "Микрофон",
   "contactsPermission": "Контакты",
   "phonePermission": "Телефон",
+  "smsPermission": "Отправка СМС",
   "accessibilityPermission": "Спец. возможности (Accessibility)",
   "openSettings": "Открыть настройки",
   "grantPermission": "Разрешить",
+  "overlayPermission": "Поверх других приложений",
+  "writeSettingsPermission": "Изменение системных настроек (Яркость)",
   "continueButton": "Продолжить",
-  "callConfirmation": "Позвонить {name}?",
+  "callConfirmationVoice": "Позвонить {name}? (Да/Нет)",
+  "@callConfirmationVoice": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "smsConfirmationVoice": "Отправить '{message}' контакту {name}? (Да/Нет)",
+  "@smsConfirmationVoice": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "message": {
+        "type": "String"
+      }
+    }
+  },
   "yes": "Да",
   "no": "Нет",
+  "actionConfirmed": "Выполняю.",
+  "actionCancelled": "Отменено.",
+  "unknownTime": "Не понял время, скажите 'разбуди в 7:30'.",
   "notUnderstood": "Я не понял",
   "listening": "Слушаю...",
-  "statusReady": "Готов"
+  "statusReady": "Готов",
+  "foregroundServiceRunning": "Голосовой Помощник работает",
+  "offlineRecommendation": "Для более быстрого и надежного распознавания без интернета, загрузите оффлайн пакет речи в настройках устройства.",
+  "offlineSettingsButton": "Оффлайн Пакет Речи"
 }
