@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -214,8 +215,31 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   Map<String, dynamic>? _pendingAction;
 
+  Future<bool> _hasInternetConnection() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+        return true;
+      }
+    } on SocketException catch (_) {
+      return false;
+    }
+    return false;
+  }
+
   void _listen({bool forceOnline = false}) async {
     debugPrint('Mic button pressed: forceOnline=$forceOnline, _isListening=$_isListening');
+
+    if (forceOnline) {
+      debugPrint('Checking internet connection for online fallback...');
+      final hasInternet = await _hasInternetConnection();
+      if (!hasInternet) {
+        debugPrint('No internet connection available. Aborting online fallback.');
+        if (mounted) setState(() => _isListening = false);
+        _addToHistory("Xatolik", "Internet aloqasi yo'q, online tanish ishlamaydi.");
+        return;
+      }
+    }
 
     if (!_isListening || forceOnline) { // Allow starting if we are explicitly forcing online
       debugPrint('Initializing SpeechToText...');
@@ -228,20 +252,28 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                // The STT stopped naturally (e.g. timeout or silence). Process what we have.
                _processCommand(_text);
                _text = '';
+            } else if (_text.isEmpty && _speech.isNotListening) {
+               debugPrint('SpeechToText stopped silently without recognizing any text.');
+               // We only want to log it for now to avoid spam, unless debugging requires it
             }
           }
         },
         onError: (errorNotification) async {
           debugPrint('SpeechToText Error: ${errorNotification.errorMsg} (forceOnline=$forceOnline)');
 
-          if (errorNotification.errorMsg.contains('error_language_not_supported') || errorNotification.errorMsg.contains('language_not_supported') || errorNotification.errorMsg.contains('error_server_disconnected')) {
+          if (errorNotification.errorMsg.contains('error_language_not_supported') || errorNotification.errorMsg.contains('language_not_supported') || errorNotification.errorMsg.contains('error_server_disconnected') || errorNotification.errorMsg.contains('error_speech_timeout')) {
              if (!forceOnline) {
                 // Auto fallback to online recognition
                 debugPrint('Falling back to online recognition due to offline package missing or server disconnect.');
                 _addToHistory("Xabar", "Offline paket topilmadi, online rejimda ishlamoqda...");
 
                 debugPrint('Canceling previous speech session...');
-                await _speech.cancel(); // Completely stop the previous session
+                try {
+                  await _speech.cancel(); // Completely stop the previous session
+                  debugPrint('Previous session canceled successfully.');
+                } catch (e) {
+                  debugPrint('Error canceling previous session: $e');
+                }
                 await Future.delayed(const Duration(milliseconds: 200)); // Small wait for plugin cleanup
 
                 debugPrint('Starting new session with forceOnline=true');
@@ -286,12 +318,18 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           onDevice: !forceOnline, // Use onDevice only if not forced online
         );
       } else {
-         _addToHistory("Xatolik", "Mikrofonga ulanib bo'lmadi yoki ruxsat yo'q.");
+         debugPrint('SpeechToText is NOT available on this device.');
+         _addToHistory("Xatolik", "Bu qurilmada nutqni tanish xizmati topilmadi yoki cheklangan. Google ilovasi o'rnatilganini va ruxsat berilganini tekshiring.");
+         if (mounted) setState(() => _isListening = false);
       }
     } else {
       debugPrint('Stopping SpeechToText manually...');
       if (mounted) setState(() => _isListening = false);
-      _speech.stop();
+      try {
+        _speech.stop();
+      } catch (e) {
+        debugPrint('Error stopping manually: $e');
+      }
       if (_text.isNotEmpty) {
         _processCommand(_text);
         _text = '';
