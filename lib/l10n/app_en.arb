@@ -9,6 +9,7 @@
   "accessibilityPermission": "Accessibility",
   "openSettings": "Open Settings",
   "grantPermission": "Grant",
+  "overlayPermission": "Display over other apps",
   "continueButton": "Continue",
   "callConfirmation": "Call {name}?",
   "yes": "Yes",

@@ -37,6 +37,9 @@ class AppLocalizationsUz extends AppLocalizations {
   String get grantPermission => 'Ruxsat berish';
 
   @override
+  String get overlayPermission => 'Boshqa ilovalar ustida chizish';
+
+  @override
   String get continueButton => 'Davom etish';
 
   @override

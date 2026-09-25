@@ -154,6 +154,12 @@ abstract class AppLocalizations {
   /// **'Ruxsat berish'**
   String get grantPermission;
 
+  /// No description provided for @overlayPermission.
+  ///
+  /// In uz, this message translates to:
+  /// **'Boshqa ilovalar ustida chizish'**
+  String get overlayPermission;
+
   /// No description provided for @continueButton.
   ///
   /// In uz, this message translates to:

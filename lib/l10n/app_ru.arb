@@ -9,6 +9,7 @@
   "accessibilityPermission": "Спец. возможности (Accessibility)",
   "openSettings": "Открыть настройки",
   "grantPermission": "Разрешить",
+  "overlayPermission": "Поверх других приложений",
   "continueButton": "Продолжить",
   "callConfirmation": "Позвонить {name}?",
   "yes": "Да",

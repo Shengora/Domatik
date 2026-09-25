@@ -15,9 +15,11 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.voiceassistant/channel"
+    private lateinit var nativeCommandsHelper: NativeCommandsHelper
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        nativeCommandsHelper = NativeCommandsHelper(this)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -55,6 +57,31 @@ class MainActivity : FlutterActivity() {
                     stopService(serviceIntent)
                     result.success(true)
                 }
+                "canDrawOverlays" -> {
+                    result.success(android.provider.Settings.canDrawOverlays(this))
+                }
+                "requestOverlayPermission" -> {
+                    val intent = Intent(
+                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        android.net.Uri.parse("package:$packageName")
+                    )
+                    startActivity(intent)
+                    result.success(true)
+                }
+                "startOverlayService" -> {
+                    if (android.provider.Settings.canDrawOverlays(this)) {
+                        val intent = Intent(this, OverlayService::class.java)
+                        startService(intent)
+                        result.success(true)
+                    } else {
+                        result.success(false)
+                    }
+                }
+                "stopOverlayService" -> {
+                    val intent = Intent(this, OverlayService::class.java)
+                    stopService(intent)
+                    result.success(true)
+                }
                 "executeCommand" -> {
                     val command = call.arguments as Map<String, Any>
                     handleCommand(command, result)
@@ -74,7 +101,7 @@ class MainActivity : FlutterActivity() {
             "open_app" -> {
                 val appName = params["appName"] as? String
                 if (appName != null) {
-                    val matchedApp = openAppByName(appName)
+                    val matchedApp = nativeCommandsHelper.openAppByName(appName)
                     if (matchedApp != null) {
                         result.success(mapOf("matchedApp" to matchedApp))
                     } else {
@@ -87,9 +114,9 @@ class MainActivity : FlutterActivity() {
             "call" -> {
                 val name = params["name"] as? String
                 if (name != null) {
-                    val contactInfo = getPhoneNumberByName(name)
+                    val contactInfo = nativeCommandsHelper.getPhoneNumberByName(name)
                     if (contactInfo != null) {
-                        makeCall(contactInfo.second)
+                        nativeCommandsHelper.makeCall(contactInfo.second)
                         result.success(mapOf("matchedName" to contactInfo.first))
                     } else {
                         result.error("CONTACT_NOT_FOUND", "Could not find contact: $name", null)
@@ -121,82 +148,6 @@ class MainActivity : FlutterActivity() {
                 result.error("UNKNOWN_ACTION", "Action not supported", null)
             }
         }
-    }
-
-    private fun openAppByName(appName: String): String? {
-        val pm = packageManager
-        val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-
-        var bestMatch: android.content.pm.ApplicationInfo? = null
-        var bestMatchLabel = ""
-
-        for (app in packages) {
-            val label = pm.getApplicationLabel(app).toString()
-            // 1. Check exact match
-            if (label.equals(appName, ignoreCase = true)) {
-                val intent = pm.getLaunchIntentForPackage(app.packageName)
-                if (intent != null) {
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    startActivity(intent)
-                    return label
-                }
-            }
-            // 2. Check partial match (contains or startsWith)
-            if (label.contains(appName, ignoreCase = true)) {
-                if (bestMatch == null) {
-                    val intent = pm.getLaunchIntentForPackage(app.packageName)
-                    if (intent != null) {
-                        bestMatch = app
-                        bestMatchLabel = label
-                    }
-                }
-            }
-        }
-
-        if (bestMatch != null) {
-            val intent = pm.getLaunchIntentForPackage(bestMatch.packageName)
-            if (intent != null) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-                return bestMatchLabel
-            }
-        }
-
-        return null
-    }
-
-    private fun getPhoneNumberByName(name: String): Pair<String, String>? {
-        var resultInfo: Pair<String, String>? = null
-        val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
-        val projection = arrayOf(
-            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-            ContactsContract.CommonDataKinds.Phone.NUMBER
-        )
-
-        val cursor = contentResolver.query(uri, projection, null, null, null)
-
-        if (cursor != null) {
-            val nameIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-            val numberIndex = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-
-            while (cursor.moveToNext()) {
-                val contactName = cursor.getString(nameIndex)
-                val contactNumber = cursor.getString(numberIndex)
-
-                if (contactName != null && contactName.contains(name, ignoreCase = true)) {
-                    resultInfo = Pair(contactName, contactNumber)
-                    break // Take the first match
-                }
-            }
-            cursor.close()
-        }
-        return resultInfo
-    }
-
-    private fun makeCall(phoneNumber: String) {
-        val intent = Intent(Intent.ACTION_CALL)
-        intent.data = Uri.parse("tel:$phoneNumber")
-        startActivity(intent)
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {

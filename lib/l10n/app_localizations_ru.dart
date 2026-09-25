@@ -37,6 +37,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get grantPermission => 'Разрешить';
 
   @override
+  String get overlayPermission => 'Поверх других приложений';
+
+  @override
   String get continueButton => 'Продолжить';
 
   @override

@@ -37,6 +37,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get grantPermission => 'Grant';
 
   @override
+  String get overlayPermission => 'Display over other apps';
+
+  @override
   String get continueButton => 'Continue';
 
   @override

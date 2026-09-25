@@ -9,6 +9,7 @@
   "accessibilityPermission": "Maxsus Imkoniyatlar (Accessibility)",
   "openSettings": "Sozlamalarni ochish",
   "grantPermission": "Ruxsat berish",
+  "overlayPermission": "Boshqa ilovalar ustida chizish",
   "continueButton": "Davom etish",
   "callConfirmation": "{name}ga qo'ng'iroq qilaymi?",
   "@callConfirmation": {

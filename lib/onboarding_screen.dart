@@ -20,6 +20,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _contactsGranted = false;
   bool _phoneGranted = false;
   bool _accessibilityGranted = false;
+  bool _overlayGranted = false;
 
   @override
   void initState() {
@@ -55,14 +56,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       debugPrint("Unexpected error during accessibility check: $e");
     }
 
+    bool overlayStatus = false;
+    try {
+      final bool? result = await platform.invokeMethod<bool>('canDrawOverlays');
+      overlayStatus = result ?? false;
+    } on PlatformException catch (e) {
+      debugPrint("Failed to check overlay permission: '${e.message}'.");
+    }
+
     setState(() {
       _micGranted = micStatus.isGranted;
       _contactsGranted = contactsStatus.isGranted;
       _phoneGranted = phoneStatus.isGranted;
       _accessibilityGranted = accessibilityStatus;
+      _overlayGranted = overlayStatus;
     });
 
-    debugPrint("OnboardingScreen Permissions -> Mic: $_micGranted, Contacts: $_contactsGranted, Phone: $_phoneGranted, Accessibility: $_accessibilityGranted");
+    debugPrint("OnboardingScreen Permissions -> Mic: $_micGranted, Contacts: $_contactsGranted, Phone: $_phoneGranted, Accessibility: $_accessibilityGranted, Overlay: $_overlayGranted");
   }
 
   Future<void> _requestMicrophone() async {
@@ -94,13 +104,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
+  Future<void> _requestOverlayPermission() async {
+    try {
+      await platform.invokeMethod('requestOverlayPermission');
+    } on PlatformException catch (e) {
+      debugPrint("Failed to request overlay permission: '${e.message}'.");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
-    // Consider accessibility as granted if it's explicitly enabled or we just allow bypass (user request)
+    // Consider accessibility and overlay as granted if explicitly enabled or allowed to bypass
     final coreGranted = _micGranted && _contactsGranted && _phoneGranted;
-    final allGranted = coreGranted && _accessibilityGranted;
+    final allGranted = coreGranted && _accessibilityGranted && _overlayGranted;
 
     return Scaffold(
       appBar: AppBar(
@@ -140,6 +158,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               onRequest: _openAccessibilitySettings,
               buttonText: l10n.openSettings,
             ),
+            _buildPermissionItem(
+              title: l10n.overlayPermission,
+              isGranted: _overlayGranted,
+              onRequest: _requestOverlayPermission,
+              buttonText: l10n.openSettings,
+            ),
             const Spacer(),
             SizedBox(
               width: double.infinity,
@@ -147,7 +171,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: ElevatedButton(
                 onPressed: coreGranted
                     ? () async {
-                        debugPrint("OnboardingScreen: Continue button pressed. Core permissions are true. Accessibility: $_accessibilityGranted");
+                        debugPrint("OnboardingScreen: Continue button pressed. Core permissions are true. Accessibility: $_accessibilityGranted, Overlay: $_overlayGranted");
                         try {
                           final prefs = await SharedPreferences.getInstance();
                           await prefs.setBool('onboarding_completed', true);

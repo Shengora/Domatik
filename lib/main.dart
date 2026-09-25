@@ -88,6 +88,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   String _text = '';
   String _localeId = 'uz_UZ';
   final List<String> _history = [];
+  bool _isOverlayEnabled = false;
 
   void _addToHistory(String rawText, String result) {
     setState(() {
@@ -103,6 +104,64 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     super.initState();
     _speech = stt.SpeechToText();
     WidgetsBinding.instance.addObserver(this);
+    _loadOverlayState();
+  }
+
+  void _loadOverlayState() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isOverlayEnabled = prefs.getBool('overlay_enabled') ?? false;
+    });
+    if (_isOverlayEnabled) {
+      _startOverlay();
+    }
+  }
+
+  void _toggleOverlay(bool value) async {
+    setState(() {
+      _isOverlayEnabled = value;
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('overlay_enabled', value);
+
+    if (value) {
+      _startOverlay();
+    } else {
+      _stopOverlay();
+    }
+  }
+
+  void _startOverlay() async {
+    try {
+      final bool? hasPermission = await platform.invokeMethod('canDrawOverlays');
+      if (hasPermission == true) {
+        await platform.invokeMethod('startOverlayService');
+        debugPrint("Overlay service started");
+      } else {
+        debugPrint("Missing overlay permissions.");
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             const SnackBar(content: Text("Boshqa ilovalar ustida chizish ruxsati kerak.")),
+           );
+           setState(() {
+             _isOverlayEnabled = false;
+           });
+           final prefs = await SharedPreferences.getInstance();
+           await prefs.setBool('overlay_enabled', false);
+        }
+      }
+    } on PlatformException catch (e) {
+      debugPrint("Failed to start overlay: '${e.message}'.");
+    }
+  }
+
+  void _stopOverlay() async {
+    try {
+      await platform.invokeMethod('stopOverlayService');
+      debugPrint("Overlay service stopped");
+    } on PlatformException catch (e) {
+      debugPrint("Failed to stop overlay: '${e.message}'.");
+    }
   }
 
   @override
@@ -281,6 +340,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       appBar: AppBar(
         title: Text(l10n.appTitle),
         actions: [
+          Row(
+            children: [
+              const Icon(Icons.bubble_chart),
+              Switch(
+                value: _isOverlayEnabled,
+                onChanged: _toggleOverlay,
+                activeColor: Colors.white,
+              ),
+            ],
+          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               setState(() {
