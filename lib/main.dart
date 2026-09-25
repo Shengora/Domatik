@@ -215,12 +215,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Map<String, dynamic>? _pendingAction;
 
   void _listen({bool forceOnline = false}) async {
-    if (!_isListening) {
+    debugPrint('Mic button pressed: forceOnline=$forceOnline, _isListening=$_isListening');
+
+    if (!_isListening || forceOnline) { // Allow starting if we are explicitly forcing online
+      debugPrint('Initializing SpeechToText...');
       bool available = await _speech.initialize(
         onStatus: (status) {
-          debugPrint('SpeechToText Status: $status');
+          debugPrint('SpeechToText Status: $status (forceOnline=$forceOnline)');
           if (status == 'done' || status == 'notListening') {
-            setState(() => _isListening = false);
+            if (mounted) setState(() => _isListening = false);
             if (_text.isNotEmpty && _speech.isNotListening) {
                // The STT stopped naturally (e.g. timeout or silence). Process what we have.
                _processCommand(_text);
@@ -228,33 +231,50 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             }
           }
         },
-        onError: (errorNotification) {
-          debugPrint('SpeechToText Error: $errorNotification');
-          setState(() => _isListening = false);
+        onError: (errorNotification) async {
+          debugPrint('SpeechToText Error: ${errorNotification.errorMsg} (forceOnline=$forceOnline)');
 
-          if (errorNotification.errorMsg.contains('error_language_not_supported') || errorNotification.errorMsg.contains('language_not_supported')) {
+          if (errorNotification.errorMsg.contains('error_language_not_supported') || errorNotification.errorMsg.contains('language_not_supported') || errorNotification.errorMsg.contains('error_server_disconnected')) {
              if (!forceOnline) {
                 // Auto fallback to online recognition
-                debugPrint('Falling back to online recognition due to offline package missing.');
+                debugPrint('Falling back to online recognition due to offline package missing or server disconnect.');
                 _addToHistory("Xabar", "Offline paket topilmadi, online rejimda ishlamoqda...");
+
+                debugPrint('Canceling previous speech session...');
+                await _speech.cancel(); // Completely stop the previous session
+                await Future.delayed(const Duration(milliseconds: 200)); // Small wait for plugin cleanup
+
+                debugPrint('Starting new session with forceOnline=true');
+                if (mounted) setState(() => _isListening = true); // Maintain UI listening state
                 _listen(forceOnline: true);
                 return;
              }
           }
+
+          if (mounted) setState(() => _isListening = false);
           _addToHistory("Xatolik", "Mikrofon xatosi: ${errorNotification.errorMsg}");
         },
       );
 
+      debugPrint('SpeechToText initialize available: $available');
+
       if (available) {
-        setState(() {
-          _isListening = true;
-          _text = '';
-        });
+        if (mounted) {
+          setState(() {
+            _isListening = true;
+            _text = '';
+          });
+        }
+
+        debugPrint('Calling _speech.listen with onDevice: ${!forceOnline}');
         _speech.listen(
           onResult: (val) {
-            setState(() {
-              _text = val.recognizedWords;
-            });
+            debugPrint('SpeechToText Result: ${val.recognizedWords} (isFinal=${val.finalResult})');
+            if (mounted) {
+              setState(() {
+                _text = val.recognizedWords;
+              });
+            }
             if (val.finalResult) {
               _processCommand(val.recognizedWords);
               _text = '';
@@ -269,7 +289,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
          _addToHistory("Xatolik", "Mikrofonga ulanib bo'lmadi yoki ruxsat yo'q.");
       }
     } else {
-      setState(() => _isListening = false);
+      debugPrint('Stopping SpeechToText manually...');
+      if (mounted) setState(() => _isListening = false);
       _speech.stop();
       if (_text.isNotEmpty) {
         _processCommand(_text);

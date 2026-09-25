@@ -138,7 +138,10 @@ class OverlayService : Service() {
                 if ((error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED || error == SpeechRecognizer.ERROR_SERVER_DISCONNECTED) && !forceOnline) {
                     forceOnline = true
                     updateStatus("Falling back to online...")
-                    startListening() // Restart without offline requirement
+                    speechRecognizer.cancel()
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        startListening() // Restart without offline requirement
+                    }, 200)
                     return
                 }
 
