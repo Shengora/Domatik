@@ -4,7 +4,7 @@ class CommandParser {
     text = text.toLowerCase().trim();
 
     // 0. To'xtatish buyrug'i
-    final stopRegex = RegExp(r'^(?:to\'xta|yetadi|stop|стоп|хватит)$');
+    final stopRegex = RegExp(r"^(?:to'xta|yetadi|stop|стоп|хватит)$");
     if (stopRegex.hasMatch(text)) {
       return {"action": "stop_swipe", "params": {}};
     }
