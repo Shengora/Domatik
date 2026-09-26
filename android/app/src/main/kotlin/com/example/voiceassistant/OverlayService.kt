@@ -36,6 +36,7 @@ class OverlayService : Service() {
     private lateinit var nativeCommandsHelper: NativeCommandsHelper
     private lateinit var methodChannel: MethodChannel
     private var isListening = false
+    private var isProcessingFallback = false
 
     companion object {
         const val ENGINE_ID = "voice_assistant_engine"
@@ -135,15 +136,32 @@ class OverlayService : Service() {
                 updateStatus("Processing...")
             }
             override fun onError(error: Int) {
-                if ((error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED || error == SpeechRecognizer.ERROR_SERVER_DISCONNECTED) && !forceOnline) {
+                if (error == SpeechRecognizer.ERROR_CLIENT) {
+                    speechRecognizer.cancel()
+                    updateStatus("Mic busy, try again")
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        isListening = false
+                        isProcessingFallback = false
+                        resetIcon()
+                        hideStatusDelayed()
+                        forceOnline = false
+                    }, 300)
+                    return
+                }
+
+                if ((error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED || error == SpeechRecognizer.ERROR_SERVER_DISCONNECTED || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) && !forceOnline) {
                     forceOnline = true
                     updateStatus("Falling back to online...")
-                    startListening() // Restart without offline requirement
+                    speechRecognizer.cancel()
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        startListening() // Restart without offline requirement
+                    }, 300)
                     return
                 }
 
                 updateStatus("Error: $error")
                 isListening = false
+                isProcessingFallback = false
                 resetIcon()
                 hideStatusDelayed()
                 forceOnline = false // Reset for next time
@@ -156,6 +174,7 @@ class OverlayService : Service() {
                     parseAndExecute(text)
                 }
                 isListening = false
+                isProcessingFallback = false
                 resetIcon()
                 forceOnline = false // Reset for next time
             }
@@ -336,6 +355,8 @@ class OverlayService : Service() {
                         if (!isMoved) {
                             // It's a click!
                             if (isListening) {
+                                isListening = false
+                                isProcessingFallback = false
                                 speechRecognizer.stopListening()
                             } else {
                                 startListening()
@@ -350,6 +371,12 @@ class OverlayService : Service() {
     }
 
     private fun startListening() {
+        if (isProcessingFallback && !forceOnline) return
+
+        if (!forceOnline) {
+            isProcessingFallback = true
+        }
+
         isListening = true
         bubbleIcon.setBackgroundColor(Color.RED)
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {

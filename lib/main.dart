@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -85,6 +86,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   static const platform = MethodChannel('com.example.voiceassistant/channel');
   late stt.SpeechToText _speech;
   bool _isListening = false;
+  bool _isProcessingFallback = false;
   String _text = '';
   String _localeId = 'uz_UZ';
   final List<String> _history = [];
@@ -214,47 +216,131 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   Map<String, dynamic>? _pendingAction;
 
+  Future<bool> _hasInternetConnection() async {
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+        return true;
+      }
+    } on SocketException catch (_) {
+      return false;
+    }
+    return false;
+  }
+
   void _listen({bool forceOnline = false}) async {
-    if (!_isListening) {
+    debugPrint('Mic button pressed: forceOnline=$forceOnline, _isListening=$_isListening, _isProcessingFallback=$_isProcessingFallback');
+
+    if (_isProcessingFallback && !forceOnline) {
+      debugPrint('Ignoring mic press: already processing a fallback/session transition.');
+      return;
+    }
+
+    if (!forceOnline) {
+       _isProcessingFallback = true;
+    }
+
+    if (forceOnline) {
+      debugPrint('Checking internet connection for online fallback...');
+      final hasInternet = await _hasInternetConnection();
+      if (!hasInternet) {
+        debugPrint('No internet connection available. Aborting online fallback.');
+        if (mounted) setState(() {
+          _isListening = false;
+          _isProcessingFallback = false;
+        });
+        _addToHistory("Xatolik", "Internet aloqasi yo'q, online tanish ishlamaydi.");
+        return;
+      }
+    }
+
+    if (!_isListening || forceOnline) { // Allow starting if we are explicitly forcing online
+      debugPrint('Initializing SpeechToText...');
       bool available = await _speech.initialize(
         onStatus: (status) {
-          debugPrint('SpeechToText Status: $status');
+          debugPrint('SpeechToText Status: $status (forceOnline=$forceOnline)');
           if (status == 'done' || status == 'notListening') {
-            setState(() => _isListening = false);
+            if (mounted) setState(() {
+              _isListening = false;
+              _isProcessingFallback = false;
+            });
             if (_text.isNotEmpty && _speech.isNotListening) {
                // The STT stopped naturally (e.g. timeout or silence). Process what we have.
                _processCommand(_text);
                _text = '';
+            } else if (_text.isEmpty && _speech.isNotListening) {
+               debugPrint('SpeechToText stopped silently without recognizing any text.');
+               // We only want to log it for now to avoid spam, unless debugging requires it
             }
           }
         },
-        onError: (errorNotification) {
-          debugPrint('SpeechToText Error: $errorNotification');
-          setState(() => _isListening = false);
+        onError: (errorNotification) async {
+          debugPrint('SpeechToText Error: ${errorNotification.errorMsg} (forceOnline=$forceOnline)');
 
-          if (errorNotification.errorMsg.contains('error_language_not_supported') || errorNotification.errorMsg.contains('language_not_supported')) {
+          if (errorNotification.errorMsg.contains('error_client')) {
+             debugPrint('Client error detected. Canceling and prompting user.');
+             try {
+               await _speech.cancel();
+             } catch (_) {}
+             await Future.delayed(const Duration(milliseconds: 300));
+
+             if (mounted) setState(() {
+               _isListening = false;
+               _isProcessingFallback = false;
+             });
+             _addToHistory("Xabar", "Mikrofon band edi, qayta urinib ko'ring.");
+             return; // Stop the retry loop for client error
+          }
+
+          if (errorNotification.errorMsg.contains('error_language_not_supported') || errorNotification.errorMsg.contains('language_not_supported') || errorNotification.errorMsg.contains('error_server_disconnected') || errorNotification.errorMsg.contains('error_speech_timeout')) {
              if (!forceOnline) {
                 // Auto fallback to online recognition
-                debugPrint('Falling back to online recognition due to offline package missing.');
+                debugPrint('Falling back to online recognition due to offline package missing or server disconnect.');
                 _addToHistory("Xabar", "Offline paket topilmadi, online rejimda ishlamoqda...");
+
+                debugPrint('Canceling previous speech session...');
+                try {
+                  await _speech.cancel(); // Completely stop the previous session
+                  debugPrint('Previous session canceled successfully.');
+                } catch (e) {
+                  debugPrint('Error canceling previous session: $e');
+                }
+                await Future.delayed(const Duration(milliseconds: 300)); // Wait for plugin cleanup
+
+                debugPrint('Starting new session with forceOnline=true');
+                if (mounted) setState(() => _isListening = true); // Maintain UI listening state
                 _listen(forceOnline: true);
                 return;
              }
           }
+
+          if (mounted) setState(() {
+            _isListening = false;
+            _isProcessingFallback = false;
+          });
           _addToHistory("Xatolik", "Mikrofon xatosi: ${errorNotification.errorMsg}");
         },
       );
 
+      debugPrint('SpeechToText initialize available: $available');
+
       if (available) {
-        setState(() {
-          _isListening = true;
-          _text = '';
-        });
+        if (mounted) {
+          setState(() {
+            _isListening = true;
+            _text = '';
+          });
+        }
+
+        debugPrint('Calling _speech.listen with onDevice: ${!forceOnline}');
         _speech.listen(
           onResult: (val) {
-            setState(() {
-              _text = val.recognizedWords;
-            });
+            debugPrint('SpeechToText Result: ${val.recognizedWords} (isFinal=${val.finalResult})');
+            if (mounted) {
+              setState(() {
+                _text = val.recognizedWords;
+              });
+            }
             if (val.finalResult) {
               _processCommand(val.recognizedWords);
               _text = '';
@@ -266,11 +352,21 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           onDevice: !forceOnline, // Use onDevice only if not forced online
         );
       } else {
-         _addToHistory("Xatolik", "Mikrofonga ulanib bo'lmadi yoki ruxsat yo'q.");
+         debugPrint('SpeechToText is NOT available on this device.');
+         _addToHistory("Xatolik", "Bu qurilmada nutqni tanish xizmati topilmadi yoki cheklangan. Google ilovasi o'rnatilganini va ruxsat berilganini tekshiring.");
+         if (mounted) setState(() => _isListening = false);
       }
     } else {
-      setState(() => _isListening = false);
-      _speech.stop();
+      debugPrint('Stopping SpeechToText manually...');
+      if (mounted) setState(() {
+        _isListening = false;
+        _isProcessingFallback = false;
+      });
+      try {
+        _speech.stop();
+      } catch (e) {
+        debugPrint('Error stopping manually: $e');
+      }
       if (_text.isNotEmpty) {
         _processCommand(_text);
         _text = '';
