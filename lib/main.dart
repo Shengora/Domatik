@@ -86,6 +86,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   static const platform = MethodChannel('com.example.voiceassistant/channel');
   late stt.SpeechToText _speech;
   bool _isListening = false;
+  bool _isProcessingFallback = false;
   String _text = '';
   String _localeId = 'uz_UZ';
   final List<String> _history = [];
@@ -228,14 +229,26 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   void _listen({bool forceOnline = false}) async {
-    debugPrint('Mic button pressed: forceOnline=$forceOnline, _isListening=$_isListening');
+    debugPrint('Mic button pressed: forceOnline=$forceOnline, _isListening=$_isListening, _isProcessingFallback=$_isProcessingFallback');
+
+    if (_isProcessingFallback && !forceOnline) {
+      debugPrint('Ignoring mic press: already processing a fallback/session transition.');
+      return;
+    }
+
+    if (!forceOnline) {
+       _isProcessingFallback = true;
+    }
 
     if (forceOnline) {
       debugPrint('Checking internet connection for online fallback...');
       final hasInternet = await _hasInternetConnection();
       if (!hasInternet) {
         debugPrint('No internet connection available. Aborting online fallback.');
-        if (mounted) setState(() => _isListening = false);
+        if (mounted) setState(() {
+          _isListening = false;
+          _isProcessingFallback = false;
+        });
         _addToHistory("Xatolik", "Internet aloqasi yo'q, online tanish ishlamaydi.");
         return;
       }
@@ -247,7 +260,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         onStatus: (status) {
           debugPrint('SpeechToText Status: $status (forceOnline=$forceOnline)');
           if (status == 'done' || status == 'notListening') {
-            if (mounted) setState(() => _isListening = false);
+            if (mounted) setState(() {
+              _isListening = false;
+              _isProcessingFallback = false;
+            });
             if (_text.isNotEmpty && _speech.isNotListening) {
                // The STT stopped naturally (e.g. timeout or silence). Process what we have.
                _processCommand(_text);
@@ -260,6 +276,21 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         },
         onError: (errorNotification) async {
           debugPrint('SpeechToText Error: ${errorNotification.errorMsg} (forceOnline=$forceOnline)');
+
+          if (errorNotification.errorMsg.contains('error_client')) {
+             debugPrint('Client error detected. Canceling and prompting user.');
+             try {
+               await _speech.cancel();
+             } catch (_) {}
+             await Future.delayed(const Duration(milliseconds: 300));
+
+             if (mounted) setState(() {
+               _isListening = false;
+               _isProcessingFallback = false;
+             });
+             _addToHistory("Xabar", "Mikrofon band edi, qayta urinib ko'ring.");
+             return; // Stop the retry loop for client error
+          }
 
           if (errorNotification.errorMsg.contains('error_language_not_supported') || errorNotification.errorMsg.contains('language_not_supported') || errorNotification.errorMsg.contains('error_server_disconnected') || errorNotification.errorMsg.contains('error_speech_timeout')) {
              if (!forceOnline) {
@@ -274,7 +305,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                 } catch (e) {
                   debugPrint('Error canceling previous session: $e');
                 }
-                await Future.delayed(const Duration(milliseconds: 200)); // Small wait for plugin cleanup
+                await Future.delayed(const Duration(milliseconds: 300)); // Wait for plugin cleanup
 
                 debugPrint('Starting new session with forceOnline=true');
                 if (mounted) setState(() => _isListening = true); // Maintain UI listening state
@@ -283,7 +314,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
              }
           }
 
-          if (mounted) setState(() => _isListening = false);
+          if (mounted) setState(() {
+            _isListening = false;
+            _isProcessingFallback = false;
+          });
           _addToHistory("Xatolik", "Mikrofon xatosi: ${errorNotification.errorMsg}");
         },
       );
@@ -324,7 +358,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       }
     } else {
       debugPrint('Stopping SpeechToText manually...');
-      if (mounted) setState(() => _isListening = false);
+      if (mounted) setState(() {
+        _isListening = false;
+        _isProcessingFallback = false;
+      });
       try {
         _speech.stop();
       } catch (e) {

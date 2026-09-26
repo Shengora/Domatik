@@ -161,117 +161,119 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       appBar: AppBar(
         title: Text(l10n.appTitle),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.permissionsRequired,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            _buildPermissionItem(
-              title: l10n.microphonePermission,
-              isGranted: _micGranted,
-              onRequest: _requestMicrophone,
-              buttonText: l10n.grantPermission,
-            ),
-            _buildPermissionItem(
-              title: l10n.contactsPermission,
-              isGranted: _contactsGranted,
-              onRequest: _requestContacts,
-              buttonText: l10n.grantPermission,
-            ),
-            _buildPermissionItem(
-              title: l10n.phonePermission,
-              isGranted: _phoneGranted,
-              onRequest: _requestPhone,
-              buttonText: l10n.grantPermission,
-            ),
-            _buildPermissionItem(
-              title: l10n.smsPermission,
-              isGranted: _smsGranted,
-              onRequest: _requestSms,
-              buttonText: l10n.grantPermission,
-            ),
-            _buildPermissionItem(
-              title: l10n.accessibilityPermission,
-              isGranted: _accessibilityGranted,
-              onRequest: _openAccessibilitySettings,
-              buttonText: l10n.openSettings,
-            ),
-            _buildPermissionItem(
-              title: l10n.overlayPermission,
-              isGranted: _overlayGranted,
-              onRequest: _requestOverlayPermission,
-              buttonText: l10n.openSettings,
-            ),
-            _buildPermissionItem(
-              title: l10n.writeSettingsPermission,
-              isGranted: _writeSettingsGranted,
-              onRequest: _requestWriteSettingsPermission,
-              buttonText: l10n.openSettings,
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.permissionsRequired,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.offlineRecommendation,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: _openVoiceSettings,
-                      child: Text(l10n.offlineSettingsButton),
+              const SizedBox(height: 20),
+              _buildPermissionItem(
+                title: l10n.microphonePermission,
+                isGranted: _micGranted,
+                onRequest: _requestMicrophone,
+                buttonText: l10n.grantPermission,
+              ),
+              _buildPermissionItem(
+                title: l10n.contactsPermission,
+                isGranted: _contactsGranted,
+                onRequest: _requestContacts,
+                buttonText: l10n.grantPermission,
+              ),
+              _buildPermissionItem(
+                title: l10n.phonePermission,
+                isGranted: _phoneGranted,
+                onRequest: _requestPhone,
+                buttonText: l10n.grantPermission,
+              ),
+              _buildPermissionItem(
+                title: l10n.smsPermission,
+                isGranted: _smsGranted,
+                onRequest: _requestSms,
+                buttonText: l10n.grantPermission,
+              ),
+              _buildPermissionItem(
+                title: l10n.accessibilityPermission,
+                isGranted: _accessibilityGranted,
+                onRequest: _openAccessibilitySettings,
+                buttonText: l10n.openSettings,
+              ),
+              _buildPermissionItem(
+                title: l10n.overlayPermission,
+                isGranted: _overlayGranted,
+                onRequest: _requestOverlayPermission,
+                buttonText: l10n.openSettings,
+              ),
+              _buildPermissionItem(
+                title: l10n.writeSettingsPermission,
+                isGranted: _writeSettingsGranted,
+                onRequest: _requestWriteSettingsPermission,
+                buttonText: l10n.openSettings,
+              ),
+              const SizedBox(height: 30),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.offlineRecommendation,
+                      style: const TextStyle(fontSize: 14),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: _openVoiceSettings,
+                        child: Text(l10n.offlineSettingsButton),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: coreGranted
-                    ? () async {
-                        debugPrint("OnboardingScreen: Continue button pressed. Core permissions are true. Accessibility: $_accessibilityGranted, Overlay: $_overlayGranted");
-                        try {
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setBool('onboarding_completed', true);
-                          debugPrint("OnboardingScreen: Saved onboarding_completed = true. Calling widget.onComplete()...");
-                          widget.onComplete();
-                        } catch (e) {
-                          debugPrint("OnboardingScreen: Error while saving prefs or calling onComplete: $e");
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Xatolik: $e")),
-                            );
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: coreGranted
+                      ? () async {
+                          debugPrint("OnboardingScreen: Continue button pressed. Core permissions are true. Accessibility: $_accessibilityGranted, Overlay: $_overlayGranted");
+                          try {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setBool('onboarding_completed', true);
+                            debugPrint("OnboardingScreen: Saved onboarding_completed = true. Calling widget.onComplete()...");
+                            widget.onComplete();
+                          } catch (e) {
+                            debugPrint("OnboardingScreen: Error while saving prefs or calling onComplete: $e");
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("Xatolik: $e")),
+                              );
+                            }
                           }
                         }
-                      }
-                    : null,
-                child: Text(l10n.continueButton),
+                      : null,
+                  child: Text(l10n.continueButton),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Center(
-              child: TextButton(
-                onPressed: () => _checkPermissions(),
-                child: const Text("Yangilash / Обновить / Refresh"),
+              const SizedBox(height: 10),
+              Center(
+                child: TextButton(
+                  onPressed: () => _checkPermissions(),
+                  child: const Text("Yangilash / Обновить / Refresh"),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
